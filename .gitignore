@@ -1,0 +1,11 @@
+# 需求文档不使用git追踪
+docs/requirements/
+
+# UI 原型不使用git追踪（一次性设计产物，正式界面在 apps/web）
+prototype/
+
+# 依赖与本地缓存
+node_modules/
+.pnpm-store/
+*.log
+
