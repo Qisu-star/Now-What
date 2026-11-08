@@ -148,10 +148,18 @@ pnpm check   # typecheck + test + build
 
 | 里程碑 | 状态 | 完成日期 | 备注 |
 | --- | --- | --- | --- |
-| M0 脚手架 | 未开始 | | |
+| M0 脚手架 | 完成 | 2026-11-08 | 健康检查链路已打通，见下方记录 |
 | M1 事务闭环 | 未开始 | | |
 | M2 周视图与排期 | 未开始 | | |
 | M3 归档与历史 | 未开始 | | |
 | M4 日/月视图 | 未开始 | | |
 | M5 附件与导出 | 延后 | | |
 | M6 移动端与同步 | 延后 | | |
+
+### M0 实现记录
+
+- `packages/shared` 编译为 `dist` 再被引用：Node 不允许对 `node_modules` 内的 TS 做类型剥离，workspace 包正好链接在那里。
+- API 直接以 Node 24 的类型剥离运行 `src/server.ts`，不需要单独的编译步骤；生产环境要求 Node ≥ 22。
+- 数据库迁移由 `drizzle-kit generate` 生成，启动时自动执行；`data/` 已在 `.gitignore` 中。
+- 契约链路已打通：zod schema → `apps/api/openapi.json`，可用 `pnpm --filter @nowwhat/api openapi` 重新生成。
+- pnpm 11 的配置集中在 `pnpm-workspace.yaml`（`nodeLinker: hoisted`、`strictDepBuilds: false`），`.npmrc` 不再生效。

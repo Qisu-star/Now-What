@@ -1,0 +1,32 @@
+{
+  "name": "@nowwhat/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --pool=threads",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node src/scripts/migrate.ts",
+    "openapi": "node src/scripts/openapi.ts"
+  },
+  "dependencies": {
+    "@fastify/static": "10.1.10",
+    "@fastify/swagger": "9.9.3",
+    "@nowwhat/shared": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.4",
+    "fastify": "5.12.8",
+    "fastify-type-provider-zod": "7.0.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.10.0",
+    "drizzle-kit": "0.31.11",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}

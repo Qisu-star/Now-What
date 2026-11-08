@@ -1,0 +1,15 @@
+{
+  "name": "now-what",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.28.5",
+  "scripts": {
+    "dev": "pnpm --filter @nowwhat/shared build && pnpm --parallel --filter @nowwhat/api --filter @nowwhat/web dev",
+    "build": "pnpm --filter @nowwhat/shared build && pnpm --filter @nowwhat/web build",
+    "start": "pnpm --filter @nowwhat/api start",
+    "test": "pnpm -r test",
+    "check": "pnpm --filter @nowwhat/shared build && pnpm -r typecheck && pnpm -r test && pnpm --filter @nowwhat/web build",
+    "db:generate": "pnpm --filter @nowwhat/api db:generate",
+    "db:migrate": "pnpm --filter @nowwhat/api db:migrate"
+  }
+}

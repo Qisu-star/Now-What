@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+nodeLinker: hoisted
+
+# esbuild 只用预编译二进制，安装脚本可不执行；避免安装被判定为失败
+strictDepBuilds: false
+
+onlyBuiltDependencies:
+  - better-sqlite3
+
+verifyDepsBeforeRun: false

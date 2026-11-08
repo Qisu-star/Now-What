@@ -9,3 +9,11 @@ node_modules/
 .pnpm-store/
 *.log
 
+# 运行时数据
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# 构建产物
+dist/

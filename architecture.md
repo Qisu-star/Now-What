@@ -122,9 +122,10 @@ now-what/
 | 命令 | 作用 |
 | --- | --- |
 | `pnpm dev` | 同时启动 Vite（5173）与 Fastify（3000），前端代理 `/api` |
-| `pnpm build` | 构建 web 与 api |
+| `pnpm build` | 构建 `shared` 与 web 产物 |
 | `pnpm start` | 单进程启动，Fastify 托管 web 构建产物与 API |
 | `pnpm db:generate` / `pnpm db:migrate` | 生成 / 执行数据库迁移 |
+| `pnpm --filter @nowwhat/api openapi` | 由 zod schema 重新生成 `apps/api/openapi.json` |
 | `pnpm test` / `pnpm test:e2e` | 单元测试 / 端到端测试 |
 
 环境变量：`DATABASE_URL`（默认 `data/nowwhat.db`）、`PORT`（默认 3000）、`UPLOAD_DIR`（默认 `data/uploads`）。
