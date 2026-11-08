@@ -18,7 +18,10 @@ runMigrations(db)
 
 const app = await buildApp({ clock: systemClock, db, sqlite })
 
-if (existsSync(webDist)) {
+// 只有显式要求时才托管前端产物：开发环境由 Vite 提供页面
+const serveWeb = process.argv.includes('--serve-web')
+
+if (serveWeb && existsSync(webDist)) {
   await app.register(staticPlugin, { root: webDist, prefix: '/' })
   app.setNotFoundHandler((request, reply) => {
     if (request.raw.url?.startsWith('/api')) {
@@ -32,6 +35,6 @@ const port = Number(process.env.PORT ?? 3000)
 
 await app.listen({ port, host: '127.0.0.1' })
 console.log(`[api] listening on http://127.0.0.1:${port}`)
-if (existsSync(webDist)) {
+if (serveWeb && existsSync(webDist)) {
   console.log(`[api] serving web from ${webDist}`)
 }
