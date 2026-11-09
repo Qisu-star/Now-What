@@ -9,6 +9,7 @@ const props = defineProps<{ task: Task }>()
 const emit = defineEmits<{ open: [id: string] }>()
 
 const meta = computed(() => PRIORITY_META[props.task.priority])
+const color = computed(() => taskColor(props.task.color))
 const overdue = computed(() => isOverdue(props.task.endAt))
 
 function onPointerDown(event: PointerEvent): void {
@@ -26,7 +27,7 @@ function onClick(): void {
   <button
     data-testid="task-card"
     class="task-card flex w-full touch-none select-none flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md"
-    :style="{ borderTop: `3px solid ${taskColor(task.color)}` }"
+    :style="{ borderLeft: `4px solid ${color}`, backgroundColor: `color-mix(in srgb, ${color} 7%, white)` }"
     @pointerdown="onPointerDown"
     @click="onClick"
   >

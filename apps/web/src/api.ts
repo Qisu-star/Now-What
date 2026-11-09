@@ -122,3 +122,7 @@ export function updatePlacement(
     body: JSON.stringify(patch)
   })
 }
+
+export function deletePlacement(id: string): Promise<void> {
+  return request<void>(`/api/v1/placements/${id}`, { method: 'DELETE' })
+}

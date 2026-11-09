@@ -215,6 +215,7 @@ onMounted(() => {
       @close="detailId = null"
       @edit="onEdit"
       @deleted="onDeleted"
+      @changed="load"
     />
 
     <div

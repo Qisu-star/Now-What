@@ -121,3 +121,58 @@ test('修改截止时间后自动卡片跟随', async ({ page }) => {
 
   await expect(page.locator('.ev', { hasText: 'E2E 改期' })).toBeVisible()
 })
+
+test('拖动 30 分钟卡片只改变位置，不改变时长', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 短卡片',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  const card = page.locator('.ev', { hasText: 'E2E 短卡片' })
+  const before = await card.boundingBox()
+  if (!before) throw new Error('卡片未渲染')
+
+  const columnBox = await page.locator('.cal-col').nth(3).boundingBox()
+  if (!columnBox) throw new Error('列未渲染')
+
+  const startX = before.x + before.width / 2
+  const startY = before.y + before.height / 2
+  const targetX = columnBox.x + columnBox.width / 2
+  const targetY = columnBox.y + 14 * 56 + 10
+
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  for (let step = 1; step <= 10; step++) {
+    await page.mouse.move(
+      startX + ((targetX - startX) * step) / 10,
+      startY + ((targetY - startY) * step) / 10
+    )
+  }
+  await page.mouse.up()
+
+  await expect(page.getByText('已调整')).toBeVisible()
+  const after = await card.boundingBox()
+  if (!after) throw new Error('卡片消失了')
+
+  // 高度基本不变（仍是 30 分钟），横向换了列
+  expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(2)
+  expect(Math.abs(after.x - before.x)).toBeGreaterThan(40)
+})
+
+test('可以把安排从日程中移除', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 移除安排',
+    endDate: '2026-11-10',
+    endTime: '19:00'
+  })
+
+  const card = page.locator('.ev', { hasText: 'E2E 移除安排' })
+  await expect(card).toBeVisible()
+
+  await page.locator('.task-card', { hasText: 'E2E 移除安排' }).click()
+  await page.getByRole('button', { name: '移除', exact: true }).click()
+
+  await expect(page.getByText('已从日程移除')).toBeVisible()
+  await expect(card).toHaveCount(0)
+})

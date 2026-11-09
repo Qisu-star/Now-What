@@ -10,13 +10,17 @@ export interface HitResult {
   edge: HitEdge
 }
 
+/** 边缘热区宽度 */
 const EDGE_ZONE_PX = 5
+/** 卡片太矮时不提供拉伸，避免想拖动却改了时长 */
+const MIN_RESIZE_HEIGHT_PX = 40
 const TOLERANCE_PX = 3
 
 /**
  * 判断指针落在哪张卡片上、应该触发哪种操作。
  * 先看指针是否落在卡片区间内（含极小容差），再按离上下边缘的远近决定拉伸还是移动。
  * 两张卡片上下紧贴时，优先选择指针真正落在其区间内的那张，避免误抓相邻卡片。
+ * 高度不足 MIN_RESIZE_HEIGHT_PX 的卡片只允许移动。
  */
 export function pickCard(cards: readonly HitCard[], y: number, hourPx: number): HitResult | null {
   const toPx = (minutes: number): number => (minutes / 60) * hourPx
@@ -55,11 +59,12 @@ export function pickCard(cards: readonly HitCard[], y: number, hourPx: number): 
 
   const top = toPx(card.start)
   const bottom = toPx(card.end)
+  const height = bottom - top
   const toTop = Math.abs(y - top)
   const toBottom = Math.abs(y - bottom)
 
   let edge: HitEdge = 'body'
-  if (toTop <= EDGE_ZONE_PX || toBottom <= EDGE_ZONE_PX) {
+  if (height >= MIN_RESIZE_HEIGHT_PX && (toTop <= EDGE_ZONE_PX || toBottom <= EDGE_ZONE_PX)) {
     edge = toTop <= toBottom ? 'start' : 'end'
   }
 

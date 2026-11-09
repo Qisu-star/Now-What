@@ -14,6 +14,8 @@ const height = computed(
 const density = computed(() =>
   height.value < 44 ? 'compact' : height.value >= 76 ? 'tall' : 'standard'
 )
+/** 与 shared 的命中规则保持一致：太矮的卡片不提供拉伸 */
+const resizable = computed(() => height.value >= 40)
 
 const color = computed(() => taskColor(props.task.color))
 const priority = computed(() => PRIORITY_META[props.task.priority])
@@ -41,6 +43,8 @@ function onClick(): void {
 
 <template>
   <div class="ev" :class="density" :style="style" @click="onClick">
+    <span v-if="resizable" class="handle top" aria-hidden="true" />
+    <span v-if="resizable" class="handle bottom" aria-hidden="true" />
     <template v-if="density === 'compact'">
       <span class="h-1.5 w-1.5 flex-none rounded-full" :class="priority.dot" />
       <span class="min-w-0 flex-1 truncate text-[10.5px] text-slate-900">{{ task.title }}</span>
@@ -83,6 +87,31 @@ function onClick(): void {
 
 .ev:hover {
   filter: brightness(0.98);
+}
+
+.ev:active {
+  cursor: grabbing;
+}
+
+.handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 5px;
+  cursor: ns-resize;
+}
+
+.handle:hover {
+  background: rgb(15 23 42 / 10%);
+}
+
+.handle.top {
+  top: -1px;
+}
+
+.handle.bottom {
+  bottom: -1px;
 }
 
 .ev.compact {

@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import type { TaskDetail } from '../api'
-import { deleteTask, fetchTask, ApiError } from '../api'
+import { deletePlacement, deleteTask, fetchTask, ApiError } from '../api'
 import { PRIORITY_META } from '../theme'
 import { fmtDateTime, fmtPlacement, isOverdue } from '../format'
+import { toast } from '../toast'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps<{ taskId: string }>()
-const emit = defineEmits<{ close: []; edit: [task: TaskDetail['task']]; deleted: [] }>()
+const emit = defineEmits<{
+  close: []
+  edit: [task: TaskDetail['task']]
+  deleted: []
+  changed: []
+}>()
 
 const detail = ref<TaskDetail | null>(null)
 const loading = ref(true)
@@ -30,6 +36,19 @@ async function load(): Promise<void> {
 function askDelete(): void {
   if (!detail.value) return
   confirmingDelete.value = true
+}
+
+async function removePlacement(id: string): Promise<void> {
+  try {
+    await deletePlacement(id)
+    if (detail.value) {
+      detail.value.placements = detail.value.placements.filter((item) => item.id !== id)
+    }
+    emit('changed')
+    toast('已从日程移除')
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '移除失败'
+  }
 }
 
 async function confirmDelete(): Promise<void> {
@@ -105,7 +124,17 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
                 class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm text-slate-700"
               >
                 <span>{{ fmtPlacement(placement.day, placement.startMinute, placement.endMinute) }}</span>
-                <span class="text-xs text-slate-400">{{ placement.adjusted ? '手动' : '自动' }}</span>
+                <span class="flex items-center gap-3">
+                  <span class="text-xs text-slate-400">{{ placement.adjusted ? '手动' : '自动' }}</span>
+                  <button
+                    type="button"
+                    class="text-xs text-slate-400 transition hover:text-rose-600"
+                    :data-testid="`remove-placement-${placement.id}`"
+                    @click="removePlacement(placement.id)"
+                  >
+                    移除
+                  </button>
+                </span>
               </li>
             </ul>
           </div>
