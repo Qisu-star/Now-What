@@ -36,6 +36,16 @@ pnpm dev
 
 首次启动会自动创建 `data/nowwhat.db` 并执行迁移。
 
+## 环境变量
+
+默认配置即可运行；需要覆盖时复制 `.env.example` 为 `.env`，或直接设置环境变量：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `PORT` | `3000` | 后端监听端口 |
+| `DATABASE_URL` | `data/nowwhat.db` | SQLite 文件路径 |
+| `UPLOAD_DIR` | `data/uploads` | 附件落盘目录 |
+
 ## 常用命令
 
 | 命令 | 作用 |
@@ -44,7 +54,7 @@ pnpm dev
 | `pnpm build` | 构建 `shared` 与前端产物 |
 | `pnpm start` | 单进程启动，Fastify 托管前端与 API（3000 端口） |
 | `pnpm check` | 类型检查 + 单元/集成测试 + 构建 |
-| `pnpm e2e` | 构建后跑 Playwright 端到端测试（复用本机 Edge） |
+| `pnpm e2e` | 构建后跑 Playwright 端到端测试（本地用系统 Edge，CI 用 Chromium） |
 | `pnpm test:e2e` | 直接跑 E2E，要求已有构建产物 |
 | `pnpm db:generate` | 根据 schema 生成迁移 |
 | `pnpm db:migrate` | 执行迁移 |
@@ -70,3 +80,12 @@ plan.md          里程碑、TDD 流程与 git 规范
 - 决策记录：[docs/adr/](docs/adr/)
 
 `docs/requirements/` 与 `prototype/` 为本地设计资料，不纳入版本管理。
+## 持续集成
+
+`.github/workflows/ci.yml` 在每次 push 到 `main` 和 Pull Request 时运行：
+
+1. 类型检查、单元与集成测试、前端构建
+2. 校验 `apps/api/openapi.json` 与代码一致（不一致则失败）
+3. Playwright 端到端测试（Ubuntu + Chromium，失败时上传报告）
+
+本地可先跑 `pnpm check` 和 `pnpm e2e` 复现同样的检查。

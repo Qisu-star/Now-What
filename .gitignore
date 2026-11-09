@@ -1,7 +1,5 @@
-# 需求文档不使用git追踪
+# 需求文档与设计稿不纳入版本管理
 docs/requirements/
-
-# UI 原型不使用git追踪（一次性设计产物，正式界面在 apps/web）
 prototype/
 
 # 依赖与本地缓存
@@ -9,16 +7,41 @@ node_modules/
 .pnpm-store/
 *.log
 
-# 运行时数据
+# 运行时数据（数据库、附件）
 data/
 *.db
 *.db-shm
 *.db-wal
+uploads/
 
 # 构建产物
 dist/
+apps/web/dist/
+packages/shared/dist/
+*.tsbuildinfo
 
+# 测试产物
 e2e/.tmp/
 test-results/
 playwright-report/
 blob-report/
+coverage/
+
+# 打包产物（后续 Electron 用）
+release/
+out/
+*.exe
+*.msi
+*.dmg
+*.AppImage
+
+# 环境变量（示例文件除外）
+.env
+.env.*
+!.env.example
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

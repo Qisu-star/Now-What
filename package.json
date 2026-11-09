@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.28.5",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "pnpm --filter @nowwhat/shared build && pnpm --parallel --filter @nowwhat/api --filter @nowwhat/web dev",
     "build": "pnpm --filter @nowwhat/shared build && pnpm --filter @nowwhat/web build",
