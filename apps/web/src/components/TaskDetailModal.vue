@@ -4,6 +4,7 @@ import type { TaskDetail } from '../api'
 import { deleteTask, fetchTask, ApiError } from '../api'
 import { PRIORITY_META } from '../theme'
 import { fmtDateTime, fmtPlacement, isOverdue } from '../format'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps<{ taskId: string }>()
 const emit = defineEmits<{ close: []; edit: [task: TaskDetail['task']]; deleted: [] }>()
@@ -12,6 +13,7 @@ const detail = ref<TaskDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
 const deleting = ref(false)
+const confirmingDelete = ref(false)
 
 async function load(): Promise<void> {
   loading.value = true
@@ -25,9 +27,13 @@ async function load(): Promise<void> {
   }
 }
 
-async function remove(): Promise<void> {
+function askDelete(): void {
   if (!detail.value) return
-  if (!window.confirm(`删除「${detail.value.task.title}」？它的全部日程安排也会删除。`)) return
+  confirmingDelete.value = true
+}
+
+async function confirmDelete(): Promise<void> {
+  confirmingDelete.value = false
   deleting.value = true
   try {
     await deleteTask(props.taskId)
@@ -115,7 +121,7 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
         <button
           class="mr-auto rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 hover:bg-rose-100 disabled:opacity-60"
           :disabled="!detail || deleting"
-          @click="remove"
+          @click="askDelete"
         >
           {{ deleting ? '删除中…' : '删除' }}
         </button>
@@ -131,5 +137,15 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
         </button>
       </footer>
     </div>
+
+    <ConfirmDialog
+      v-if="confirmingDelete"
+      tone="danger"
+      title="删除事务"
+      :description="`「${detail?.task.title ?? ''}」及其全部日程安排都会被删除，且无法恢复。`"
+      confirm-text="删除"
+      @confirm="confirmDelete"
+      @cancel="confirmingDelete = false"
+    />
   </div>
 </template>

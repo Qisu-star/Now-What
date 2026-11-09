@@ -32,7 +32,6 @@ beforeEach(() => {
       })
     })
   )
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
 afterEach(() => {
@@ -40,39 +39,52 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('TaskDetailModal', () => {
-  it('确认后发起 DELETE 并派发 deleted', async () => {
+async function openDeleteDialog(wrapper: ReturnType<typeof mount>) {
+  const deleteButton = wrapper
+    .findAll('button')
+    .find((button) => button.text().trim() === '删除')
+  expect(deleteButton).toBeTruthy()
+  await deleteButton!.trigger('click')
+  await flushPromises()
+  return wrapper.find('[role="dialog"]')
+}
+
+describe('TaskDetailModal 删除', () => {
+  it('先弹确认框，确认后才发起 DELETE', async () => {
     const wrapper = mount(TaskDetailModal, { props: { taskId: 't1' } })
     await flushPromises()
 
-    const deleteButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().trim() === '删除')
-    expect(deleteButton).toBeTruthy()
+    const dialog = await openDeleteDialog(wrapper)
+    expect(dialog.exists()).toBe(true)
 
-    await deleteButton!.trigger('click')
+    const callsBefore = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(callsBefore.some((call) => (call[1] as RequestInit | undefined)?.method === 'DELETE')).toBe(
+      false
+    )
+
+    const confirmButton = dialog.findAll('button').find((button) => button.text().trim() === '删除')
+    await confirmButton!.trigger('click')
     await flushPromises()
 
     expect(wrapper.emitted('deleted')).toHaveLength(1)
-
     const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
     const deleteCall = calls.find((call) => (call[1] as RequestInit | undefined)?.method === 'DELETE')
     expect(deleteCall?.[0]).toBe('/api/v1/tasks/t1')
   })
 
-  it('用户取消确认时不发请求', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('取消时不发请求', async () => {
     const wrapper = mount(TaskDetailModal, { props: { taskId: 't1' } })
     await flushPromises()
 
-    const deleteButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().trim() === '删除')
-    await deleteButton!.trigger('click')
+    const dialog = await openDeleteDialog(wrapper)
+    const cancelButton = dialog.findAll('button').find((button) => button.text().trim() === '取消')
+    await cancelButton!.trigger('click')
     await flushPromises()
 
     expect(wrapper.emitted('deleted')).toBeUndefined()
     const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
-    expect(calls.some((call) => (call[1] as RequestInit | undefined)?.method === 'DELETE')).toBe(false)
+    expect(calls.some((call) => (call[1] as RequestInit | undefined)?.method === 'DELETE')).toBe(
+      false
+    )
   })
 })

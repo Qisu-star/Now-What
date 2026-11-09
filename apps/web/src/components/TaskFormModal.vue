@@ -11,6 +11,7 @@ import {
 import { ApiError, createTask, updateTask } from '../api'
 import { PRIORITY_META } from '../theme'
 import { localParts, timeToMinutes, todayLocal } from '../format'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps<{ task?: Task | null }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
@@ -42,6 +43,37 @@ if (props.task) {
 const errors = ref<Record<string, string>>({})
 const generalError = ref('')
 const saving = ref(false)
+const confirmingCancel = ref(false)
+
+function isDirty(): boolean {
+  if (props.task) {
+    const start = localParts(props.task.startAt)
+    const end = localParts(props.task.endAt)
+    return (
+      form.title !== props.task.title ||
+      form.description !== props.task.description ||
+      form.priority !== props.task.priority ||
+      form.startDate !== start.date ||
+      form.startTime !== start.time ||
+      form.endDate !== end.date ||
+      form.endTime !== end.time
+    )
+  }
+  return Boolean(form.title.trim() || form.description.trim())
+}
+
+function requestCancel(): void {
+  if (isDirty()) {
+    confirmingCancel.value = true
+    return
+  }
+  emit('cancel')
+}
+
+function confirmCancel(): void {
+  confirmingCancel.value = false
+  emit('cancel')
+}
 
 function buildInput(): TaskInput {
   return {
@@ -88,11 +120,11 @@ const inputClass =
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" @click.self="emit('cancel')">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" @click.self="requestCancel">
     <form class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl" @submit.prevent="submit">
       <header class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
         <h2 class="text-base font-semibold text-slate-900">{{ task ? '修改事务' : '新建事务' }}</h2>
-        <button type="button" class="text-slate-400 hover:text-slate-600" @click="emit('cancel')">✕</button>
+        <button type="button" class="text-slate-400 hover:text-slate-600" @click="requestCancel">✕</button>
       </header>
 
       <div class="flex max-h-[70vh] flex-col gap-4 overflow-y-auto px-5 py-4">
@@ -146,7 +178,7 @@ const inputClass =
       </div>
 
       <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
-        <button type="button" class="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50" @click="emit('cancel')">
+        <button type="button" class="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50" @click="requestCancel">
           取消
         </button>
         <button
@@ -158,5 +190,15 @@ const inputClass =
         </button>
       </footer>
     </form>
+
+    <ConfirmDialog
+      v-if="confirmingCancel"
+      tone="danger"
+      title="放弃编辑"
+      description="当前有未保存的修改，确定放弃吗？"
+      confirm-text="放弃"
+      @confirm="confirmCancel"
+      @cancel="confirmingCancel = false"
+    />
   </div>
 </template>
