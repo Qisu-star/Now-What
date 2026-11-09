@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
-import { isoUtc, type Attachment, type Clock } from '@nowwhat/shared'
+import { isoUtc, type Attachment, type AttachmentKind, type Clock } from '@nowwhat/shared'
 import type { AppDb } from '../db/client.ts'
 import { attachments, tasks } from '../db/schema.ts'
 
@@ -29,6 +29,7 @@ export interface SaveParams {
   taskId: string
   filename: string
   mimeType: string
+  kind?: AttachmentKind
   data: Buffer
 }
 
@@ -51,6 +52,7 @@ export function saveAttachment(
     taskId: params.taskId,
     filename: params.filename,
     mimeType: params.mimeType || 'application/octet-stream',
+    kind: params.kind ?? 'task',
     size: params.data.length,
     createdAt: isoUtc(clock.now())
   }

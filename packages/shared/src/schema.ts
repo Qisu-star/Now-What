@@ -111,11 +111,14 @@ export const notFoundErrorSchema = z.object({
     message: z.string()
   })
 })
+export const attachmentKindSchema = z.enum(['task', 'archive'])
+
 export const attachmentSchema = z.object({
   id: z.string(),
   taskId: z.string(),
   filename: z.string(),
   mimeType: z.string(),
+  kind: attachmentKindSchema,
   size: z.number().int(),
   createdAt: z.string()
 })

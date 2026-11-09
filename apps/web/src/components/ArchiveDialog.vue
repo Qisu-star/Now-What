@@ -5,9 +5,16 @@ import { timeToMinutes, minutesToTime } from '../format'
 
 const props = defineProps<{ title: string; placements: Placement[] }>()
 const emit = defineEmits<{
-  confirm: [payload: { completedAt?: string; note: string }]
+  confirm: [payload: { completedAt?: string; note: string; files: File[] }]
   cancel: []
 }>()
+
+const files = ref<File[]>([])
+
+function onFilesChange(event: Event): void {
+  const input = event.target as HTMLInputElement
+  files.value = Array.from(input.files ?? [])
+}
 
 const now = toLocalDayMinutes(new Date().toISOString())
 const form = reactive({
@@ -40,7 +47,8 @@ function submit(): void {
 
   emit('confirm', {
     completedAt,
-    note: form.note.trim()
+    note: form.note.trim(),
+    files: files.value
   })
 }
 
@@ -93,6 +101,21 @@ const inputClass =
         >
           该事务还有 {{ futureCount }} 个未来安排，归档后这些时段会被释放，可安排其他事务。
         </p>
+
+        <div>
+          <label class="mb-1 block text-xs text-slate-500">完成附件（可选）</label>
+          <input
+            type="file"
+            multiple
+            accept=".md,.docx,.pdf,.jpg,.jpeg,.png"
+            data-testid="archive-attachments"
+            class="block w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs file:text-slate-700"
+            @change="onFilesChange"
+          />
+          <p v-if="files.length > 0" class="mt-1 text-[11px] text-slate-400">
+            已选择 {{ files.length }} 个文件，归档后作为「完成附件」上传。
+          </p>
+        </div>
 
         <p v-if="error" class="text-xs text-rose-600">{{ error }}</p>
       </div>

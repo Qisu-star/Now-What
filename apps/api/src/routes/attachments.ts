@@ -1,4 +1,5 @@
 import { createReadStream } from 'node:fs'
+import path from 'node:path'
 import type { FastifyInstance } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
@@ -69,6 +70,7 @@ export async function attachmentRoutes(
     },
     async (request, reply) => {
       let taskId = ''
+      let kind = 'task'
       let filename = ''
       let mimeType = ''
       let data: Buffer | null = null
@@ -86,6 +88,8 @@ export async function attachmentRoutes(
           truncated = part.file.truncated
         } else if (part.fieldname === 'taskId') {
           taskId = String(part.value)
+        } else if (part.fieldname === 'kind') {
+          kind = String(part.value)
         }
       }
 
@@ -95,6 +99,16 @@ export async function attachmentRoutes(
             code: 'VALIDATION_ERROR',
             message: '缺少 taskId',
             details: [{ field: 'taskId', message: '必须指定所属事务' }]
+          }
+        })
+      }
+
+      if (kind !== 'task' && kind !== 'archive') {
+        return reply.code(422).send({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '附件类型不合法',
+            details: [{ field: 'kind', message: '只能是 task 或 archive' }]
           }
         })
       }
@@ -119,6 +133,7 @@ export async function attachmentRoutes(
         taskId,
         filename,
         mimeType,
+        kind: kind as 'task' | 'archive',
         data
       })
 
@@ -158,8 +173,11 @@ export async function attachmentRoutes(
       const target = filePath(deps.uploadDir, row.taskId, row.id, row.filename)
       const encoded = encodeURIComponent(row.filename)
 
+      const ext = path.extname(row.filename).toLowerCase()
+      const contentType = ext === '.md' ? 'text/plain; charset=utf-8' : row.mimeType
+
       return reply
-        .type(row.mimeType)
+        .type(contentType)
         .header('content-disposition', `inline; filename*=UTF-8''${encoded}`)
         .send(createReadStream(target))
     }

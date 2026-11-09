@@ -41,6 +41,7 @@ export const attachments = sqliteTable(
       .references(() => tasks.id, { onDelete: 'cascade' }),
     filename: text('filename').notNull(),
     mimeType: text('mime_type').notNull(),
+    kind: text('kind', { enum: ['task', 'archive'] }).notNull().default('task'),
     size: integer('size').notNull(),
     createdAt: text('created_at').notNull()
   },

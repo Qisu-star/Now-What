@@ -164,9 +164,14 @@ export function attachmentUrl(id: string): string {
   return `/api/v1/attachments/${id}/content`
 }
 
-export async function uploadAttachment(taskId: string, file: File): Promise<Attachment> {
+export async function uploadAttachment(
+  taskId: string,
+  file: File,
+  kind: 'task' | 'archive' = 'task'
+): Promise<Attachment> {
   const form = new FormData()
   form.append('taskId', taskId)
+  form.append('kind', kind)
   form.append('file', file)
 
   // FormData 必须让浏览器自己带 boundary，不能设置 content-type

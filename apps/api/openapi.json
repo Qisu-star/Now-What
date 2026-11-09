@@ -2078,6 +2078,13 @@
                           "mimeType": {
                             "type": "string"
                           },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "task",
+                              "archive"
+                            ]
+                          },
                           "size": {
                             "type": "integer",
                             "minimum": -9007199254740991,
@@ -2092,6 +2099,7 @@
                           "taskId",
                           "filename",
                           "mimeType",
+                          "kind",
                           "size",
                           "createdAt"
                         ],
@@ -2137,6 +2145,13 @@
                         "mimeType": {
                           "type": "string"
                         },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "task",
+                            "archive"
+                          ]
+                        },
                         "size": {
                           "type": "integer",
                           "minimum": -9007199254740991,
@@ -2151,6 +2166,7 @@
                         "taskId",
                         "filename",
                         "mimeType",
+                        "kind",
                         "size",
                         "createdAt"
                       ],

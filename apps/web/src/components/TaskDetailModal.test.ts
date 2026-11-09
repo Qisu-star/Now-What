@@ -22,9 +22,15 @@ const task = {
 beforeEach(() => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === 'DELETE') {
         return new Response(null, { status: 204 })
+      }
+      if (String(input).includes('/attachments')) {
+        return new Response(JSON.stringify({ attachments: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
       }
       return new Response(JSON.stringify({ task, placements: [] }), {
         status: 200,

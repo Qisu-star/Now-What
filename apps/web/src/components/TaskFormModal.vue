@@ -8,10 +8,11 @@ import {
   type Task,
   type TaskInput
 } from '@nowwhat/shared'
-import { ApiError, createTask, updateTask } from '../api'
+import { ApiError, createTask, updateTask, uploadAttachment } from '../api'
 import { PRIORITY_META } from '../theme'
 import { localParts, timeToMinutes, todayLocal } from '../format'
 import ConfirmDialog from './ConfirmDialog.vue'
+import { toast } from '../toast'
 
 const props = defineProps<{ task?: Task | null }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
@@ -40,6 +41,12 @@ if (props.task) {
   })
 }
 
+const files = ref<File[]>([])
+
+function onFilesChange(event: Event): void {
+  const input = event.target as HTMLInputElement
+  files.value = Array.from(input.files ?? [])
+}
 const errors = ref<Record<string, string>>({})
 const generalError = ref('')
 const saving = ref(false)
@@ -101,7 +108,16 @@ async function submit(): Promise<void> {
     if (props.task) {
       await updateTask(props.task.id, input)
     } else {
-      await createTask(input)
+      const { task } = await createTask(input)
+      let failed = 0
+      for (const file of files.value) {
+        try {
+          await uploadAttachment(task.id, file, 'task')
+        } catch {
+          failed += 1
+        }
+      }
+      if (failed > 0) toast(`事务已创建，${failed} 个附件上传失败`)
     }
     emit('saved')
   } catch (error) {
@@ -171,6 +187,21 @@ const inputClass =
           </div>
           <p v-if="errors.startAt || errors.endAt" class="mt-1 text-xs text-rose-600">
             {{ errors.startAt || errors.endAt }}
+          </p>
+        </div>
+
+        <div v-if="!task">
+          <label class="mb-1 block text-xs text-slate-500">附件（可选）</label>
+          <input
+            type="file"
+            multiple
+            accept=".md,.docx,.pdf,.jpg,.jpeg,.png"
+            data-testid="task-attachments"
+            class="block w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs file:text-slate-700"
+            @change="onFilesChange"
+          />
+          <p v-if="files.length > 0" class="mt-1 text-[11px] text-slate-400">
+            保存后上传 {{ files.length }} 个附件。
           </p>
         </div>
 

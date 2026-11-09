@@ -52,14 +52,18 @@ interface UploadOptions {
   taskId: string
   filename: string
   mimeType: string
+  kind?: 'task' | 'archive'
   data: Buffer
 }
 
 function multipartBody(options: UploadOptions): { body: Buffer; contentType: string } {
   const boundary = '----nowwhattest'
+  const kindPart = options.kind
+    ? `--${boundary}\r\nContent-Disposition: form-data; name="kind"\r\n\r\n${options.kind}\r\n`
+    : ''
   const parts: Buffer[] = [
     Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="taskId"\r\n\r\n${options.taskId}\r\n`
+      `--${boundary}\r\nContent-Disposition: form-data; name="taskId"\r\n\r\n${options.taskId}\r\n${kindPart}`
     ),
     Buffer.from(
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${options.filename}"\r\nContent-Type: ${options.mimeType}\r\n\r\n`
@@ -213,5 +217,51 @@ describe('级联删除', () => {
     expect(existsSync(file)).toBe(false)
     const list = await app.inject({ method: 'GET', url: `/api/v1/attachments?taskId=${taskId}` })
     expect(list.json().attachments).toHaveLength(0)
+  })
+})
+describe('附件分类与编码', () => {
+  it('默认是事务附件，可指定完成附件', async () => {
+    const taskId = await createTask()
+
+    const normal = (
+      await upload({
+        taskId,
+        filename: 'a.md',
+        mimeType: 'text/markdown',
+        data: Buffer.from('# 事务'),
+      })
+    ).json().attachment
+    expect(normal.kind).toBe('task')
+
+    const archive = (
+      await upload({
+        taskId,
+        filename: 'b.md',
+        mimeType: 'text/markdown',
+        kind: 'archive',
+        data: Buffer.from('# 完成'),
+      })
+    ).json().attachment
+    expect(archive.kind).toBe('archive')
+  })
+
+  it('.md 下载时带 utf-8 字符集，避免中文乱码', async () => {
+    const taskId = await createTask()
+    const created = (
+      await upload({
+        taskId,
+        filename: '说明.md',
+        mimeType: 'text/markdown',
+        data: Buffer.from('# 中文内容'),
+      })
+    ).json().attachment
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/v1/attachments/${created.id}/content`,
+    })
+
+    expect(response.headers['content-type']).toContain('charset=utf-8')
+    expect(response.body).toBe('# 中文内容')
   })
 })

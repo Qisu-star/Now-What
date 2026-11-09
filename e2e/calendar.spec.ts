@@ -425,3 +425,65 @@ test('可以上传、预览和删除附件', async ({ page }) => {
   await expect(page.getByText('附件已删除')).toBeVisible()
   await expect(page.getByText('dot.png')).toHaveCount(0)
 })
+test('新建事务时可以一起上传附件', async ({ page }) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+  )
+
+  await page.getByTestId('new-task').click()
+  await page.getByTestId('task-title').fill('E2E 带附件新建')
+  await page.getByTestId('task-description').fill('E2E 描述')
+  await page.getByTestId('end-date').fill('2026-11-10')
+  await page.getByTestId('end-time').fill('18:00')
+  await page.getByTestId('task-attachments').setInputFiles({
+    name: 'plan.png',
+    mimeType: 'image/png',
+    buffer: png
+  })
+  await page.getByTestId('save-task').click()
+
+  await expect(page.locator('.task-card', { hasText: 'E2E 带附件新建' })).toBeVisible()
+  await page.locator('.task-card', { hasText: 'E2E 带附件新建' }).click()
+  await expect(page.getByText('plan.png')).toBeVisible()
+})
+
+test('归档时可以附加完成材料，并与事务附件分组显示', async ({ page }) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+  )
+
+  await createTask(page, {
+    title: 'E2E 完成附件',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 完成附件' }).click()
+  await page.getByTestId('attachment-input').setInputFiles({
+    name: 'task.png',
+    mimeType: 'image/png',
+    buffer: png
+  })
+  await expect(page.getByText('附件已上传')).toBeVisible()
+
+  await page.getByTestId('archive-task').click()
+  await page.getByTestId('archive-date').fill('2026-11-10')
+  await page.getByTestId('archive-time').fill('20:00')
+  await page.getByTestId('archive-attachments').setInputFiles({
+    name: 'done.png',
+    mimeType: 'image/png',
+    buffer: png
+  })
+  await page.getByTestId('confirm-archive').click()
+  await expect(page.getByText('已归档')).toBeVisible()
+
+  await page.getByTestId('tab-history').click()
+  await page.locator('[data-testid="history-item"]', { hasText: 'E2E 完成附件' }).click()
+
+  await expect(page.getByText('事务附件', { exact: true })).toBeVisible()
+  await expect(page.getByText('完成附件', { exact: true })).toBeVisible()
+  await expect(page.getByText('task.png')).toBeVisible()
+  await expect(page.getByText('done.png')).toBeVisible()
+})

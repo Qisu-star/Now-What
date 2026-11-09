@@ -30,11 +30,14 @@ export interface Placement {
   source: PlacementSource
   adjusted: boolean
 }
+export type AttachmentKind = 'task' | 'archive'
+
 export interface Attachment {
   id: string
   taskId: string
   filename: string
   mimeType: string
+  kind: AttachmentKind
   size: number
   createdAt: string
 }

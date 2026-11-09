@@ -57,6 +57,10 @@ const editEnd = ref('10:00')
 const savingEdit = ref(false)
 
 const attachments = ref<Attachment[]>([])
+const taskAttachments = computed(() => attachments.value.filter((item) => item.kind === 'task'))
+const archiveAttachments = computed(() =>
+  attachments.value.filter((item) => item.kind === 'archive')
+)
 const uploading = ref(false)
 const attachmentError = ref('')
 const pendingDeleteAttachment = ref<string | null>(null)
@@ -212,11 +216,29 @@ async function addManualPlacement(): Promise<void> {
   }
 }
 
-async function confirmArchive(payload: { completedAt?: string; note: string }): Promise<void> {
+async function confirmArchive(payload: {
+  completedAt?: string
+  note: string
+  files: File[]
+}): Promise<void> {
   showArchiveDialog.value = false
   try {
-    const { released } = await archiveTask(props.taskId, payload)
+    const { released } = await archiveTask(props.taskId, {
+      completedAt: payload.completedAt,
+      note: payload.note
+    })
+
+    let failed = 0
+    for (const file of payload.files) {
+      try {
+        await uploadAttachment(props.taskId, file, 'archive')
+      } catch {
+        failed += 1
+      }
+    }
+
     emit('archived', released)
+    if (failed > 0) toast(`已归档，${failed} 个完成附件上传失败`)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '归档失败'
   }
@@ -254,7 +276,7 @@ function formatSize(size: number): string {
     : `${Math.max(1, Math.round(size / 1024))} KB`
 }
 
-async function onFileChange(event: Event): Promise<void> {
+async function onFileChange(event: Event, kind: 'task' | 'archive' = 'task'): Promise<void> {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
@@ -262,9 +284,9 @@ async function onFileChange(event: Event): Promise<void> {
   attachmentError.value = ''
   uploading.value = true
   try {
-    const attachment = await uploadAttachment(props.taskId, file)
+    const attachment = await uploadAttachment(props.taskId, file, kind)
     attachments.value = [...attachments.value, attachment]
-    toast('附件已上传')
+    toast(kind === 'archive' ? '完成材料已上传' : '附件已上传')
   } catch (err) {
     attachmentError.value = err instanceof Error ? err.message : '上传失败'
   } finally {
@@ -516,8 +538,9 @@ const inputClass =
 
           <div class="border-t border-slate-100 pt-3">
             <div class="mb-1.5 flex items-center justify-between">
-              <p class="text-xs text-slate-500">附件</p>
+              <p class="text-xs text-slate-500">事务附件</p>
               <label
+                v-if="!archived"
                 class="cursor-pointer rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 transition hover:bg-slate-50"
               >
                 {{ uploading ? '上传中…' : '上传文件' }}
@@ -526,20 +549,95 @@ const inputClass =
                   class="hidden"
                   accept=".md,.docx,.pdf,.jpg,.jpeg,.png"
                   data-testid="attachment-input"
-                  @change="onFileChange"
+                  @change="onFileChange($event, 'task')"
                 />
               </label>
             </div>
 
             <p v-if="attachmentError" class="mb-1 text-xs text-rose-600">{{ attachmentError }}</p>
 
-            <p v-if="attachments.length === 0" class="text-xs text-slate-500">
+            <p v-if="taskAttachments.length === 0" class="text-xs text-slate-500">
               支持 .md / .docx / .pdf / .jpg / .png，单个不超过 20 MB。
             </p>
 
             <ul v-else class="flex flex-col gap-1.5">
               <li
-                v-for="item in attachments"
+                v-for="item in taskAttachments"
+                :key="item.id"
+                class="rounded-lg border border-slate-100 px-3 py-2"
+              >
+                <div class="flex items-center gap-2 text-sm text-slate-700">
+                  <span class="min-w-0 flex-1 truncate">{{ item.filename }}</span>
+                  <span class="flex-none text-[11px] text-slate-400">{{ formatSize(item.size) }}</span>
+                  <a
+                    :href="attachmentUrl(item.id)"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="flex-none text-xs text-slate-400 transition hover:text-blue-600"
+                    data-testid="attachment-open"
+                  >
+                    打开
+                  </a>
+                  <template v-if="!archived">
+                    <button
+                      v-if="pendingDeleteAttachment === item.id"
+                      type="button"
+                      class="flex-none text-xs font-semibold text-rose-600"
+                      data-testid="attachment-delete-confirm"
+                      @click="removeAttachment(item.id)"
+                    >
+                      确认删除
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="flex-none text-xs text-slate-400 transition hover:text-rose-600"
+                      data-testid="attachment-delete"
+                      @click="pendingDeleteAttachment = item.id"
+                    >
+                      删除
+                    </button>
+                  </template>
+                </div>
+                <img
+                  v-if="isImage(item)"
+                  :src="attachmentUrl(item.id)"
+                  :alt="item.filename"
+                  class="mt-2 max-h-40 rounded-md border border-slate-100 object-contain"
+                  data-testid="attachment-image"
+                />
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="archived || archiveAttachments.length > 0"
+            class="border-t border-slate-100 pt-3"
+          >
+            <div class="mb-1.5 flex items-center justify-between">
+              <p class="text-xs text-slate-500">完成附件</p>
+              <label
+                v-if="archived"
+                class="cursor-pointer rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 transition hover:bg-slate-50"
+              >
+                {{ uploading ? '上传中…' : '补充完成材料' }}
+                <input
+                  type="file"
+                  class="hidden"
+                  accept=".md,.docx,.pdf,.jpg,.jpeg,.png"
+                  data-testid="archive-attachment-input"
+                  @change="onFileChange($event, 'archive')"
+                />
+              </label>
+            </div>
+
+            <p v-if="archiveAttachments.length === 0" class="text-xs text-slate-500">
+              归档时可附加完成材料，例如验收截图、结题报告。
+            </p>
+
+            <ul v-else class="flex flex-col gap-1.5">
+              <li
+                v-for="item in archiveAttachments"
                 :key="item.id"
                 class="rounded-lg border border-slate-100 px-3 py-2"
               >
