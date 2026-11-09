@@ -20,6 +20,9 @@ apps/web/dist/
 packages/shared/dist/
 *.tsbuildinfo
 
+# 本地临时目录（截图、调试脚本等）
+.preview/
+
 # 测试产物
 e2e/.tmp/
 test-results/
