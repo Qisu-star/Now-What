@@ -4,7 +4,6 @@ import type { Placement, Task } from '@nowwhat/shared'
 import {
   addDays,
   fmtDateTime,
-  fmtPlacement,
   minutesToTime,
   monthDay,
   monthGridDays,
@@ -17,14 +16,14 @@ import { PRIORITY_META } from './theme'
 
 export type ViewId = 'day' | 'week' | 'month'
 
-interface SlotEvent {
+interface ViewEvent {
   placement: Placement
   task: Task
 }
 
-function eventsOf(tasks: Task[], placements: Placement[], day: string): SlotEvent[] {
+function eventsOf(tasks: Task[], placements: Placement[], day: string): ViewEvent[] {
   const byId = new Map(tasks.map((task) => [task.id, task]))
-  const result: SlotEvent[] = []
+  const result: ViewEvent[] = []
 
   for (const placement of placements) {
     if (placement.day !== day) continue
@@ -33,6 +32,24 @@ function eventsOf(tasks: Task[], placements: Placement[], day: string): SlotEven
   }
 
   return result.sort((a, b) => a.placement.startMinute - b.placement.startMinute)
+}
+
+function viewLabel(view: ViewId): string {
+  return view === 'day' ? '日视图' : view === 'week' ? '周视图' : '月视图'
+}
+
+function fullDay(day: string): string {
+  const [year, month, date] = day.split('-').map(Number)
+  return `${year}年${month}月${date}日 ${weekdayShort(day)}`
+}
+
+function rangeText(view: ViewId, anchor: string): string {
+  if (view === 'day') return fullDay(anchor)
+  if (view === 'month') {
+    return `${anchor.slice(0, 4)}年${Number(anchor.slice(5, 7))}月`
+  }
+  const start = startOfWeek(anchor)
+  return `${fullDay(start)} – ${fullDay(addDays(start, 6))}`
 }
 
 function rangeKey(view: ViewId, anchor: string): string {
@@ -47,10 +64,43 @@ function fileName(view: ViewId, anchor: string, extension: string): string {
   return `Now-What-${label}-${rangeKey(view, anchor)}.${extension}`
 }
 
-function buildTimeGrid(view: ViewId, anchor: string, tasks: Task[], placements: Placement[]) {
+/** 每个计划时段一行，含描述与截止时间 */
+function detailRows(
+  days: string[],
+  tasks: Task[],
+  placements: Placement[]
+): (string | number)[][] {
+  const rows: (string | number)[][] = [
+    ['日期', '开始', '结束', '名称', '描述', '截止时间', '优先级']
+  ]
+
+  for (const day of days) {
+    for (const item of eventsOf(tasks, placements, day)) {
+      rows.push([
+        `${monthDay(day)} ${weekdayShort(day)}`,
+        minutesToTime(item.placement.startMinute),
+        minutesToTime(item.placement.endMinute),
+        item.task.title,
+        item.task.description,
+        fmtDateTime(item.task.endAt),
+        PRIORITY_META[item.task.priority].label
+      ])
+    }
+  }
+
+  return rows
+}
+
+function buildTimeGrid(
+  view: ViewId,
+  anchor: string,
+  tasks: Task[],
+  placements: Placement[]
+): XLSX.WorkSheet {
   const days = view === 'day' ? [anchor] : weekDays(anchor)
   const header = ['时间', ...days.map((day) => `${monthDay(day)} ${weekdayShort(day)}`)]
   const rows: (string | number)[][] = [header]
+  const merges: XLSX.Range[] = []
 
   for (let slot = 0; slot < 48; slot++) {
     const start = slot * 30
@@ -68,7 +118,23 @@ function buildTimeGrid(view: ViewId, anchor: string, tasks: Task[], placements: 
     rows.push(row)
   }
 
-  return { days, rows }
+  days.forEach((day, dayIndex) => {
+    for (const item of eventsOf(tasks, placements, day)) {
+      const startSlot = Math.floor(item.placement.startMinute / 30)
+      const endSlot = Math.ceil(item.placement.endMinute / 30)
+      if (endSlot - startSlot > 1) {
+        merges.push({
+          s: { r: startSlot + 1, c: dayIndex + 1 },
+          e: { r: endSlot, c: dayIndex + 1 }
+        })
+      }
+    }
+  })
+
+  const sheet = XLSX.utils.aoa_to_sheet(rows)
+  sheet['!cols'] = [{ wch: 8 }, ...Array(7).fill({ wch: 26 })]
+  sheet['!merges'] = merges
+  return sheet
 }
 
 export function exportXlsx(
@@ -80,50 +146,36 @@ export function exportXlsx(
   const workbook = XLSX.utils.book_new()
 
   if (view === 'month') {
-    const rows: (string | number)[][] = [['日期', '时间', '事务', '优先级']]
-    for (const day of monthGridDays(monthStart(anchor))) {
-      for (const item of eventsOf(tasks, placements, day)) {
-        rows.push([
-          `${monthDay(day)} ${weekdayShort(day)}`,
-          `${minutesToTime(item.placement.startMinute)}–${minutesToTime(item.placement.endMinute)}`,
-          item.task.title,
-          PRIORITY_META[item.task.priority].label
-        ])
-      }
-    }
+    const rows = detailRows(monthGridDays(monthStart(anchor)), tasks, placements)
     const sheet = XLSX.utils.aoa_to_sheet(rows)
-    sheet['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 30 }, { wch: 8 }]
+    sheet['!cols'] = [
+      { wch: 16 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 26 },
+      { wch: 50 },
+      { wch: 18 },
+      { wch: 8 }
+    ]
     XLSX.utils.book_append_sheet(workbook, sheet, '月视图')
   } else {
-    const { rows } = buildTimeGrid(view, anchor, tasks, placements)
-    const sheet = XLSX.utils.aoa_to_sheet(rows)
-    sheet['!cols'] = [{ wch: 8 }, ...Array(7).fill({ wch: 26 })]
-    XLSX.utils.book_append_sheet(workbook, sheet, view === 'day' ? '日视图' : '周视图')
+    const grid = buildTimeGrid(view, anchor, tasks, placements)
+    XLSX.utils.book_append_sheet(workbook, grid, '时间网格')
+
+    const days = view === 'day' ? [anchor] : weekDays(anchor)
+    const detail = detailRows(days, tasks, placements)
+    const detailSheet = XLSX.utils.aoa_to_sheet(detail)
+    detailSheet['!cols'] = [
+      { wch: 16 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 26 },
+      { wch: 50 },
+      { wch: 18 },
+      { wch: 8 }
+    ]
+    XLSX.utils.book_append_sheet(workbook, detailSheet, '事务明细')
   }
-
-  const taskRows: (string | number)[][] = [['名称', '描述', '截止时间', '优先级', '计划时段']]
-  const ordered = [...tasks].sort((a, b) => a.endAt.localeCompare(b.endAt))
-
-  for (const task of ordered) {
-    const ranges = placements
-      .filter((placement) => placement.taskId === task.id)
-      .map((placement) =>
-        fmtPlacement(placement.day, placement.startMinute, placement.endMinute)
-      )
-      .join('\n')
-
-    taskRows.push([
-      task.title,
-      task.description,
-      fmtDateTime(task.endAt),
-      PRIORITY_META[task.priority].label,
-      ranges
-    ])
-  }
-
-  const taskSheet = XLSX.utils.aoa_to_sheet(taskRows)
-  taskSheet['!cols'] = [{ wch: 24 }, { wch: 50 }, { wch: 18 }, { wch: 8 }, { wch: 36 }]
-  XLSX.utils.book_append_sheet(workbook, taskSheet, '事务清单')
 
   XLSX.writeFile(workbook, fileName(view, anchor, 'xlsx'))
 }
@@ -135,6 +187,48 @@ function downloadDataUrl(dataUrl: string, name: string): void {
   document.body.appendChild(link)
   link.click()
   link.remove()
+}
+
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('图片解码失败'))
+    image.src = dataUrl
+  })
+}
+
+/** 给截图加一条标题栏，补上视图类型与完整日期范围 */
+async function addTitleBar(dataUrl: string, view: ViewId, anchor: string): Promise<string> {
+  const image = await loadImage(dataUrl)
+  const barHeight = 128
+  const padding = 32
+
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = image.height + barHeight
+  const context = canvas.getContext('2d')
+  if (!context) return dataUrl
+
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  context.fillStyle = '#0f172a'
+  context.font = '600 40px "Microsoft YaHei", system-ui, sans-serif'
+  context.fillText(`Now What · ${viewLabel(view)}`, padding, 52)
+
+  context.fillStyle = '#64748b'
+  context.font = '28px "Microsoft YaHei", system-ui, sans-serif'
+  context.fillText(rangeText(view, anchor), padding, 96)
+
+  context.strokeStyle = '#e2e8f0'
+  context.beginPath()
+  context.moveTo(0, barHeight - 1)
+  context.lineTo(canvas.width, barHeight - 1)
+  context.stroke()
+
+  context.drawImage(image, 0, barHeight)
+  return canvas.toDataURL('image/png')
 }
 
 /**
@@ -190,7 +284,8 @@ export async function exportPng(
         margin: '0'
       }
     })
-    downloadDataUrl(dataUrl, fileName(view, anchor, 'png'))
+    const titled = await addTitleBar(dataUrl, view, anchor)
+    downloadDataUrl(titled, fileName(view, anchor, 'png'))
   } finally {
     for (const restore of restores.reverse()) restore()
   }

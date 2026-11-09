@@ -506,17 +506,16 @@ test('可以导出当前视图的表格和图片', async ({ page }) => {
   expect(statSync(xlsxPath!).size).toBeGreaterThan(1000)
 
   const workbook = XLSX.read(readFileSync(xlsxPath!), { type: 'buffer' })
-  expect(workbook.SheetNames).toContain('事务清单')
+  expect(workbook.SheetNames).toEqual(['时间网格', '事务明细'])
 
-  const sheet = workbook.Sheets[workbook.SheetNames[0]!]!
-  const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })
-  expect(JSON.stringify(rows)).toContain('时间')
-  expect(JSON.stringify(rows)).toContain('E2E 导出')
+  const grid = workbook.Sheets['时间网格']!
+  expect(JSON.stringify(XLSX.utils.sheet_to_json(grid, { header: 1 }))).toContain('时间')
 
-  const listSheet = workbook.Sheets['事务清单']!
-  const listRows = XLSX.utils.sheet_to_json<string[]>(listSheet, { header: 1 })
-  expect(listRows[0]).toEqual(['名称', '描述', '截止时间', '优先级', '计划时段'])
-  expect(JSON.stringify(listRows)).toContain('E2E 描述')
+  const detailSheet = workbook.Sheets['事务明细']!
+  const detailRows = XLSX.utils.sheet_to_json<string[]>(detailSheet, { header: 1 })
+  expect(detailRows[0]).toEqual(['日期', '开始', '结束', '名称', '描述', '截止时间', '优先级'])
+  expect(JSON.stringify(detailRows)).toContain('E2E 导出')
+  expect(JSON.stringify(detailRows)).toContain('E2E 描述')
 
   const [png] = await Promise.all([
     page.waitForEvent('download'),
@@ -525,6 +524,17 @@ test('可以导出当前视图的表格和图片', async ({ page }) => {
   expect(png.suggestedFilename()).toMatch(/\.png$/)
   const pngPath = await png.path()
   expect(pngPath).toBeTruthy()
+
+  // 月视图导出同样包含描述与截止时间
+  await page.getByTestId('view-month').click()
+  const [monthXlsx] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-xlsx').click()
+  ])
+  const monthBook = XLSX.read(readFileSync((await monthXlsx.path())!), { type: 'buffer' })
+  expect(monthBook.SheetNames).toEqual(['月视图'])
+  const monthRows = XLSX.utils.sheet_to_json<string[]>(monthBook.Sheets['月视图']!, { header: 1 })
+  expect(monthRows[0]).toEqual(['日期', '开始', '结束', '名称', '描述', '截止时间', '优先级'])
   expect(statSync(pngPath!).size).toBeGreaterThan(1000)
 
   // PNG 要覆盖完整 24 小时网格，且保持日历的横向比例
