@@ -59,6 +59,20 @@ export const conflictErrorSchema = z.object({
   })
 })
 
+export const taskUpdateSchema = taskInputSchema.partial().extend({
+  completedAt: z.string().optional(),
+  note: z.string().optional()
+})
+
+export const archiveInputSchema = z.object({
+  completedAt: z.string().optional(),
+  note: z.string().optional()
+})
+
+export const taskResponseSchema = z.object({
+  task: taskSchema
+})
+
 export const taskListResponseSchema = z.object({
   tasks: z.array(taskSchema)
 })

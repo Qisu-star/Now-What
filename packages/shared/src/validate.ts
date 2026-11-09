@@ -10,7 +10,7 @@ export const PRIORITIES: readonly Priority[] = [
   'pending'
 ] as const
 
-export type TaskField = 'title' | 'description' | 'priority' | 'startAt' | 'endAt'
+export type TaskField = 'title' | 'description' | 'priority' | 'startAt' | 'endAt' | 'completedAt' | 'note'
 
 export interface ValidationIssue {
   field: TaskField

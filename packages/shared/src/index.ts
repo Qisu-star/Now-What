@@ -12,6 +12,7 @@ export type { Slot } from './slots.ts'
 export { sortTasks } from './sort.ts'
 
 export {
+  archiveInputSchema,
   conflictErrorSchema,
   notFoundErrorSchema,
   placementInputSchema,
@@ -23,6 +24,8 @@ export {
   taskDetailResponseSchema,
   taskInputSchema,
   taskListResponseSchema,
+  taskResponseSchema,
+  taskUpdateSchema,
   taskSchema,
   taskWriteResponseSchema,
   validationErrorSchema,

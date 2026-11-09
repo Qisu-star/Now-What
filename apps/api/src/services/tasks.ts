@@ -14,6 +14,21 @@ import {
 import type { AppDb } from '../db/client.ts'
 import { placements, tasks } from '../db/schema.ts'
 
+export interface TaskPatch extends Partial<TaskInput> {
+  completedAt?: string
+  note?: string
+}
+
+export type ArchiveResult =
+  | { ok: true; task: Task }
+  | { ok: false; code: 'NOT_FOUND' | 'CONFLICT' }
+  | { ok: false; code: 'VALIDATION'; issues: ValidationIssue[] }
+
+export interface ArchiveInput {
+  completedAt?: string
+  note?: string
+}
+
 export interface TaskWrite {
   task: Task
   placement: Placement | null
@@ -98,10 +113,40 @@ export function updateTask(
   db: AppDb,
   clock: Clock,
   id: string,
-  patch: Partial<TaskInput>
+  patch: TaskPatch
 ): WriteResult | null {
   const existing = db.select().from(tasks).where(eq(tasks.id, id)).get()
   if (!existing) return null
+
+  const now = isoUtc(clock.now())
+
+  // 已归档事务只允许修改归档信息
+  if (existing.status === 'archived') {
+    const locked = (['title', 'description', 'priority', 'startAt', 'endAt'] as const).filter(
+      (field) => patch[field] !== undefined
+    )
+    if (locked.length > 0) {
+      return {
+        ok: false,
+        issues: locked.map((field) => ({ field, message: '已归档事务不能修改该字段' }))
+      }
+    }
+    if (patch.completedAt !== undefined && Number.isNaN(Date.parse(patch.completedAt))) {
+      return { ok: false, issues: [{ field: 'completedAt', message: '完成时间格式无效' }] }
+    }
+
+    db.update(tasks)
+      .set({
+        completedAt: patch.completedAt ?? existing.completedAt,
+        note: patch.note ?? existing.note,
+        updatedAt: now
+      })
+      .where(eq(tasks.id, id))
+      .run()
+
+    const updated = db.select().from(tasks).where(eq(tasks.id, id)).get()
+    return updated ? { ok: true, value: { task: updated, placement: null } } : null
+  }
 
   const merged: TaskInput = {
     title: patch.title ?? existing.title,
@@ -160,6 +205,55 @@ export function updateTask(
   if (!task) return null
 
   return { ok: true, value: { task, placement } }
+}
+
+export function archiveTask(
+  db: AppDb,
+  clock: Clock,
+  id: string,
+  input: ArchiveInput
+): ArchiveResult {
+  const existing = db.select().from(tasks).where(eq(tasks.id, id)).get()
+  if (!existing) return { ok: false, code: 'NOT_FOUND' }
+  if (existing.status === 'archived') return { ok: false, code: 'CONFLICT' }
+
+  if (input.completedAt !== undefined && Number.isNaN(Date.parse(input.completedAt))) {
+    return {
+      ok: false,
+      code: 'VALIDATION',
+      issues: [{ field: 'completedAt', message: '完成时间格式无效' }]
+    }
+  }
+
+  const now = isoUtc(clock.now())
+
+  db.update(tasks)
+    .set({
+      status: 'archived',
+      completedAt: input.completedAt ?? now,
+      archivedAt: now,
+      note: input.note ?? existing.note,
+      updatedAt: now
+    })
+    .where(eq(tasks.id, id))
+    .run()
+
+  const task = db.select().from(tasks).where(eq(tasks.id, id)).get()
+  return task ? { ok: true, task } : { ok: false, code: 'NOT_FOUND' }
+}
+
+export function unarchiveTask(db: AppDb, clock: Clock, id: string): ArchiveResult {
+  const existing = db.select().from(tasks).where(eq(tasks.id, id)).get()
+  if (!existing) return { ok: false, code: 'NOT_FOUND' }
+  if (existing.status !== 'archived') return { ok: false, code: 'CONFLICT' }
+
+  db.update(tasks)
+    .set({ status: 'active', updatedAt: isoUtc(clock.now()) })
+    .where(eq(tasks.id, id))
+    .run()
+
+  const task = db.select().from(tasks).where(eq(tasks.id, id)).get()
+  return task ? { ok: true, task } : { ok: false, code: 'NOT_FOUND' }
 }
 
 export function deleteTask(db: AppDb, id: string): boolean {

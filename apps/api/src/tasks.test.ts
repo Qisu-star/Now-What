@@ -184,3 +184,118 @@ describe('DELETE /api/v1/tasks/:id', () => {
     expect(remaining).toHaveLength(0)
   })
 })
+describe('归档', () => {
+  it('归档后记录完成时间与归档时间', async () => {
+    const created = (await create()).json()
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${created.task.id}/archive`,
+      payload: {}
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.task.status).toBe('archived')
+    expect(body.task.completedAt).toBe('2026-11-09T12:00:00Z')
+    expect(body.task.archivedAt).toBe('2026-11-09T12:00:00Z')
+  })
+
+  it('可以指定完成时间和备注', async () => {
+    const created = (await create()).json()
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${created.task.id}/archive`,
+      payload: { completedAt: '2026-11-08T10:00:00Z', note: '提前完成' }
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.task.completedAt).toBe('2026-11-08T10:00:00Z')
+    expect(body.task.note).toBe('提前完成')
+  })
+
+  it('归档后从待办移到历史', async () => {
+    const created = (await create()).json()
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${created.task.id}/archive`,
+      payload: {}
+    })
+
+    const active = await app.inject({ method: 'GET', url: '/api/v1/tasks?status=active' })
+    expect(active.json().tasks).toHaveLength(0)
+
+    const archived = await app.inject({ method: 'GET', url: '/api/v1/tasks?status=archived' })
+    expect(archived.json().tasks).toHaveLength(1)
+    expect(archived.json().tasks[0].id).toBe(created.task.id)
+  })
+
+  it('重复归档返回 409', async () => {
+    const created = (await create()).json()
+    await app.inject({ method: 'POST', url: `/api/v1/tasks/${created.task.id}/archive`, payload: {} })
+    const again = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${created.task.id}/archive`,
+      payload: {}
+    })
+
+    expect(again.statusCode).toBe(409)
+  })
+
+  it('归档不存在的事务返回 404', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/00000000-0000-4000-8000-000000000000/archive',
+      payload: {}
+    })
+    expect(response.statusCode).toBe(404)
+  })
+
+  it('取消归档后回到待办并保留归档信息', async () => {
+    const created = (await create()).json()
+    await app.inject({ method: 'POST', url: `/api/v1/tasks/${created.task.id}/archive`, payload: {} })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${created.task.id}/unarchive`
+    })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.task.status).toBe('active')
+    expect(body.task.completedAt).toBe('2026-11-09T12:00:00Z')
+
+    const active = await app.inject({ method: 'GET', url: '/api/v1/tasks?status=active' })
+    expect(active.json().tasks).toHaveLength(1)
+  })
+
+  it('已归档事务不能修改名称', async () => {
+    const created = (await create()).json()
+    await app.inject({ method: 'POST', url: `/api/v1/tasks/${created.task.id}/archive`, payload: {} })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/tasks/${created.task.id}`,
+      payload: { title: '改个名字' }
+    })
+
+    expect(response.statusCode).toBe(422)
+    expect(response.json().error.details).toContainEqual(
+      expect.objectContaining({ field: 'title' })
+    )
+  })
+
+  it('已归档事务可以修改完成时间与备注', async () => {
+    const created = (await create()).json()
+    await app.inject({ method: 'POST', url: `/api/v1/tasks/${created.task.id}/archive`, payload: {} })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/tasks/${created.task.id}`,
+      payload: { completedAt: '2026-11-07T08:00:00Z', note: '补记' }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().task.completedAt).toBe('2026-11-07T08:00:00Z')
+    expect(response.json().task.note).toBe('补记')
+  })
+})

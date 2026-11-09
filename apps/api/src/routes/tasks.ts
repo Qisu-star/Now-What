@@ -2,16 +2,28 @@ import type { FastifyInstance } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import {
+  archiveInputSchema,
+  conflictErrorSchema,
   notFoundErrorSchema,
   taskDetailResponseSchema,
   taskInputSchema,
   taskListResponseSchema,
+  taskResponseSchema,
+  taskUpdateSchema,
   taskWriteResponseSchema,
   validationErrorSchema,
   type Clock
 } from '@nowwhat/shared'
 import type { AppDb } from '../db/client.ts'
-import { createTask, deleteTask, getTaskDetail, listTasks, updateTask } from '../services/tasks.ts'
+import {
+  archiveTask,
+  createTask,
+  deleteTask,
+  getTaskDetail,
+  listTasks,
+  unarchiveTask,
+  updateTask
+} from '../services/tasks.ts'
 
 export interface TaskRoutesDeps {
   clock: Clock
@@ -93,7 +105,7 @@ export async function taskRoutes(app: FastifyInstance, deps: TaskRoutesDeps): Pr
         tags: ['tasks'],
         summary: '修改事务',
         params: paramsSchema,
-        body: taskInputSchema.partial(),
+        body: taskUpdateSchema,
         response: {
           200: taskWriteResponseSchema,
           404: notFoundErrorSchema,
@@ -112,6 +124,65 @@ export async function taskRoutes(app: FastifyInstance, deps: TaskRoutesDeps): Pr
         })
       }
       return reply.send(result.value)
+    }
+  )
+
+  server.post(
+    '/api/v1/tasks/:id/archive',
+    {
+      schema: {
+        tags: ['tasks'],
+        summary: '归档事务',
+        params: paramsSchema,
+        body: archiveInputSchema,
+        response: {
+          200: taskResponseSchema,
+          404: notFoundErrorSchema,
+          409: conflictErrorSchema,
+          422: validationErrorSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const result = archiveTask(deps.db, deps.clock, request.params.id, request.body)
+      if (!result.ok) {
+        if (result.code === 'VALIDATION') {
+          return reply.code(422).send({
+            error: { code: 'VALIDATION_ERROR', message: '输入不合法', details: result.issues }
+          })
+        }
+        if (result.code === 'NOT_FOUND') {
+          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: '事务不存在' } })
+        }
+        return reply.code(409).send({ error: { code: 'CONFLICT', message: '事务已归档' } })
+      }
+      return reply.send({ task: result.task })
+    }
+  )
+
+  server.post(
+    '/api/v1/tasks/:id/unarchive',
+    {
+      schema: {
+        tags: ['tasks'],
+        summary: '取消归档',
+        params: paramsSchema,
+        response: {
+          200: taskResponseSchema,
+          404: notFoundErrorSchema,
+          409: conflictErrorSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const result = unarchiveTask(deps.db, deps.clock, request.params.id)
+      if (!result.ok) {
+        if (result.code === 'NOT_FOUND') {
+          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: '事务不存在' } })
+        }
+        return reply.code(409).send({ error: { code: 'CONFLICT', message: '事务尚未归档' } })
+      }
+      return reply.send({ task: result.task })
     }
   )
 
