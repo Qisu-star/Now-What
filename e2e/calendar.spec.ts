@@ -506,7 +506,7 @@ test('可以导出当前视图的表格和图片', async ({ page }) => {
   expect(statSync(xlsxPath!).size).toBeGreaterThan(1000)
 
   const workbook = XLSX.read(readFileSync(xlsxPath!), { type: 'buffer' })
-  expect(workbook.SheetNames).toEqual(['时间网格', '事务明细'])
+  expect(workbook.SheetNames).toEqual(['事务明细', '时间网格'])
 
   const grid = workbook.Sheets['时间网格']!
   expect(JSON.stringify(XLSX.utils.sheet_to_json(grid, { header: 1 }))).toContain('时间')
@@ -544,4 +544,36 @@ test('可以导出当前视图的表格和图片', async ({ page }) => {
   expect(pngHeight).toBeGreaterThan(1500)
   expect(pngWidth).toBeGreaterThan(1200)
   expect(pngWidth / pngHeight).toBeGreaterThan(0.4)
+})
+test('同一天多次安排都会写入时间网格', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 多次安排',
+    endDate: '2026-11-10',
+    endTime: '10:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 多次安排' }).click()
+  await page.getByTestId('manual-day').fill('2026-11-10')
+  await page.getByTestId('manual-start').fill('07:10')
+  await page.getByTestId('manual-end').fill('08:30')
+  await page.getByTestId('add-placement').click()
+  await expect(page.getByText('已添加时段')).toBeVisible()
+  await page.getByRole('button', { name: '关闭', exact: true }).click()
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-xlsx').click()
+  ])
+
+  const book = XLSX.read(readFileSync((await download.path())!), { type: 'buffer' })
+  const grid = XLSX.utils.sheet_to_json<string[]>(book.Sheets['时间网格']!, {
+    header: 1,
+    defval: ''
+  })
+  const text = JSON.stringify(grid)
+
+  // 两条安排都出现在网格里，包括非整半点开始的 07:10
+  expect(text.split('E2E 多次安排').length - 1).toBeGreaterThanOrEqual(2)
+  expect(text).toContain('07:10')
+  expect(text).toContain('E2E 描述')
 })

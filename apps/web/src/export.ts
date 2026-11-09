@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 import { toPng } from 'html-to-image'
 import type { Placement, Task } from '@nowwhat/shared'
 import {
@@ -19,6 +19,17 @@ export type ViewId = 'day' | 'week' | 'month'
 interface ViewEvent {
   placement: Placement
   task: Task
+}
+
+const HEADER_STYLE = {
+  font: { bold: true },
+  fill: { fgColor: { rgb: 'F1F5F9' } },
+  alignment: { horizontal: 'center', vertical: 'center' }
+}
+
+const CELL_STYLE = {
+  alignment: { wrapText: true, vertical: 'top' },
+  font: { sz: 10 }
 }
 
 function eventsOf(tasks: Task[], placements: Placement[], day: string): ViewEvent[] {
@@ -91,6 +102,33 @@ function detailRows(
   return rows
 }
 
+function styleSheet(
+  sheet: XLSX.WorkSheet,
+  columnCount: number,
+  bodyRowHeight: number,
+  headerRowHeight: number
+): void {
+  const range = XLSX.utils.decode_range(sheet['!ref'] ?? 'A1')
+
+  for (let column = 0; column <= columnCount; column++) {
+    const header = sheet[XLSX.utils.encode_cell({ r: 0, c: column })]
+    if (header) header.s = HEADER_STYLE
+
+    for (let row = 1; row <= range.e.r; row++) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: row, c: column })]
+      if (cell) cell.s = CELL_STYLE
+    }
+  }
+
+  sheet['!rows'] = Array.from({ length: range.e.r + 1 }, (_, index) => ({
+    hpt: index === 0 ? headerRowHeight : bodyRowHeight
+  }))
+}
+
+/**
+ * 时间网格：每个计划时段按实际时长纵向合并单元格。
+ * 文本写入「开始时间所在的那一格」，兼容 12:50 这类非整半点的时间。
+ */
 function buildTimeGrid(
   view: ViewId,
   anchor: string,
@@ -103,16 +141,15 @@ function buildTimeGrid(
   const merges: XLSX.Range[] = []
 
   for (let slot = 0; slot < 48; slot++) {
-    const start = slot * 30
-    const row: (string | number)[] = [minutesToTime(start)]
+    const row: (string | number)[] = [minutesToTime(slot * 30)]
     for (const day of days) {
       const cell = eventsOf(tasks, placements, day)
-        .filter((item) => item.placement.startMinute === start)
+        .filter((item) => Math.floor(item.placement.startMinute / 30) === slot)
         .map(
           (item) =>
-            `${item.task.title} ${minutesToTime(item.placement.startMinute)}–${minutesToTime(item.placement.endMinute)}`
+            `${item.task.title}\n${minutesToTime(item.placement.startMinute)}–${minutesToTime(item.placement.endMinute)} · 截止 ${fmtDateTime(item.task.endAt)}\n${item.task.description}`
         )
-        .join('\n')
+        .join('\n\n')
       row.push(cell)
     }
     rows.push(row)
@@ -132,8 +169,9 @@ function buildTimeGrid(
   })
 
   const sheet = XLSX.utils.aoa_to_sheet(rows)
-  sheet['!cols'] = [{ wch: 8 }, ...Array(7).fill({ wch: 26 })]
+  sheet['!cols'] = [{ wch: 8 }, ...Array(7).fill({ wch: 32 })]
   sheet['!merges'] = merges
+  styleSheet(sheet, days.length, 42, 24)
   return sheet
 }
 
@@ -157,13 +195,10 @@ export function exportXlsx(
       { wch: 18 },
       { wch: 8 }
     ]
+    styleSheet(sheet, 7, 24, 24)
     XLSX.utils.book_append_sheet(workbook, sheet, '月视图')
   } else {
-    const grid = buildTimeGrid(view, anchor, tasks, placements)
-    XLSX.utils.book_append_sheet(workbook, grid, '时间网格')
-
-    const days = view === 'day' ? [anchor] : weekDays(anchor)
-    const detail = detailRows(days, tasks, placements)
+    const detail = detailRows(view === 'day' ? [anchor] : weekDays(anchor), tasks, placements)
     const detailSheet = XLSX.utils.aoa_to_sheet(detail)
     detailSheet['!cols'] = [
       { wch: 16 },
@@ -174,7 +209,11 @@ export function exportXlsx(
       { wch: 18 },
       { wch: 8 }
     ]
+    styleSheet(detailSheet, 7, 24, 24)
     XLSX.utils.book_append_sheet(workbook, detailSheet, '事务明细')
+
+    const grid = buildTimeGrid(view, anchor, tasks, placements)
+    XLSX.utils.book_append_sheet(workbook, grid, '时间网格')
   }
 
   XLSX.writeFile(workbook, fileName(view, anchor, 'xlsx'))

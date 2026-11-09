@@ -13,7 +13,8 @@
         "@nowwhat/shared": "workspace:*",
         "html-to-image": "^1.11.13",
         "vue": "3.5.45",
-        "xlsx": "^0.18.5"
+        "xlsx": "^0.18.5",
+        "xlsx-js-style": "^1.2.0"
     },
     "devDependencies": {
         "@tailwindcss/vite": "4.3.5",
