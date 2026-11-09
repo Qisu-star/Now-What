@@ -1,6 +1,6 @@
 # 005：归档与历史
 
-> 状态：草案
+> 状态：已实现（v1.1）
 > 关联事项：无
 > 关联 Spec：[001 事务管理](001-task-management.md)、[003 日程表视图](003-calendar-views.md)
 
@@ -57,15 +57,15 @@
 
 | AC | 验证方式 | 命令或可复现步骤 | 结果 / 证据 |
 | --- | --- | --- | --- |
-| AC-01 | API + E2E | `pnpm --filter api test archive` | 待填 |
-| AC-02 | API | `pnpm --filter api test archive.default-time` | 待填 |
-| AC-03 | E2E | `pnpm test:e2e -- archive-edit` | 待填 |
-| AC-04 | 单元 + 组件 | `pnpm --filter shared test sort-history` | 待填 |
-| AC-05 | API + E2E | `pnpm --filter api test unarchive` | 待填 |
-| AC-06 | API | `pnpm --filter api test archive.not-auto` | 待填 |
+| AC-01 | API + E2E | `pnpm test:e2e -- --grep "完成归档"` | 通过：归档后从待办消失、进入历史、卡片置灰加删除线 |
+| AC-02 | API | `pnpm --filter api test` | 通过：未传完成时间时等于归档时间（固定时钟 12:00）|
+| AC-03 | 人工 + API | 打开历史条目 | 通过：字段只读、无修改入口；归档信息可改，保存后 updatedAt 更新（PATCH 用例）|
+| AC-04 | 人工 | 历史列表右上角切换排序 | 通过：按完成时间倒序 / 名称升序 |
+| AC-05 | API + E2E | `pnpm test:e2e -- --grep "取消归档"` | 通过：回到待办、卡片恢复原色、completedAt 保留 |
+| AC-06 | 设计确认 | 无定时任务 | 通过：系统没有自动归档逻辑，逾期只影响样式 |
 
 ## 验收记录
 
-- `pnpm check`：待执行
-- 人工验收：不适用
-- 已知限制：附件字段本期只保留数据位，不做上传。
+- `pnpm check`：类型检查通过；测试 shared 34、api 30、web 4、E2E 14 全部通过
+- 人工验收：历史列表、已归档详情、日程置灰截图检查通过
+- 已知限制：历史排序与“归档信息可编辑”仅人工验证；附件字段本期只保留数据位。

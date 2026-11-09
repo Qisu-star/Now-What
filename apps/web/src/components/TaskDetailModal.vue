@@ -1,12 +1,30 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { fromLocalDayMinutes, type Placement } from '@nowwhat/shared'
 import type { TaskDetail } from '../api'
-import type { Placement } from '@nowwhat/shared'
-import { createPlacement, deletePlacement, deleteTask, fetchTask, updatePlacement, ApiError } from '../api'
+import {
+  archiveTask,
+  createPlacement,
+  deletePlacement,
+  deleteTask,
+  fetchTask,
+  unarchiveTask,
+  updateArchiveInfo,
+  updatePlacement,
+  ApiError
+} from '../api'
 import { PRIORITY_META } from '../theme'
-import { fmtDateTime, fmtPlacement, isOverdue, localParts, minutesToTime, timeToMinutes } from '../format'
+import {
+  fmtDateTime,
+  fmtPlacement,
+  isOverdue,
+  localParts,
+  minutesToTime,
+  timeToMinutes
+} from '../format'
 import { toast } from '../toast'
 import ConfirmDialog from './ConfirmDialog.vue'
+import ArchiveDialog from './ArchiveDialog.vue'
 
 const props = defineProps<{ taskId: string }>()
 const emit = defineEmits<{
@@ -14,6 +32,7 @@ const emit = defineEmits<{
   edit: [task: TaskDetail['task']]
   deleted: []
   changed: []
+  archived: []
 }>()
 
 const detail = ref<TaskDetail | null>(null)
@@ -21,15 +40,23 @@ const loading = ref(true)
 const error = ref('')
 const deleting = ref(false)
 const confirmingDelete = ref(false)
+
 const manualDay = ref('')
 const manualStart = ref('09:00')
 const manualEnd = ref('10:00')
 const addingManual = ref(false)
+
 const editingId = ref<string | null>(null)
 const editDay = ref('')
 const editStart = ref('09:00')
 const editEnd = ref('10:00')
 const savingEdit = ref(false)
+
+const archiveForm = reactive({ date: '', time: '09:00', note: '' })
+const savingArchive = ref(false)
+const showArchiveDialog = ref(false)
+
+const archived = computed(() => detail.value?.task.status === 'archived')
 
 async function load(): Promise<void> {
   loading.value = true
@@ -37,6 +64,16 @@ async function load(): Promise<void> {
   try {
     detail.value = await fetchTask(props.taskId)
     manualDay.value = localParts(detail.value.task.endAt).date
+
+    if (detail.value.task.status === 'archived') {
+      const completed = detail.value.task.completedAt ?? detail.value.task.archivedAt
+      if (completed) {
+        const parts = localParts(completed)
+        archiveForm.date = parts.date
+        archiveForm.time = parts.time
+      }
+      archiveForm.note = detail.value.task.note
+    }
   } catch (err) {
     error.value = err instanceof ApiError ? err.message : '加载失败'
   } finally {
@@ -47,6 +84,19 @@ async function load(): Promise<void> {
 function askDelete(): void {
   if (!detail.value) return
   confirmingDelete.value = true
+}
+
+async function confirmDelete(): Promise<void> {
+  confirmingDelete.value = false
+  deleting.value = true
+  try {
+    await deleteTask(props.taskId)
+    emit('deleted')
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '删除失败'
+  } finally {
+    deleting.value = false
+  }
 }
 
 async function removePlacement(id: string): Promise<void> {
@@ -152,16 +202,46 @@ async function addManualPlacement(): Promise<void> {
   }
 }
 
-async function confirmDelete(): Promise<void> {
-  confirmingDelete.value = false
-  deleting.value = true
+async function confirmArchive(payload: { completedAt?: string; note: string }): Promise<void> {
+  showArchiveDialog.value = false
   try {
-    await deleteTask(props.taskId)
-    emit('deleted')
+    await archiveTask(props.taskId, payload)
+    emit('archived')
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '删除失败'
+    error.value = err instanceof Error ? err.message : '归档失败'
+  }
+}
+
+async function saveArchiveInfo(): Promise<void> {
+  if (!detail.value) return
+  const minutes = timeToMinutes(archiveForm.time)
+  const completedAt = fromLocalDayMinutes(archiveForm.date, minutes)
+
+  savingArchive.value = true
+  try {
+    const { task } = await updateArchiveInfo(props.taskId, {
+      completedAt,
+      note: archiveForm.note.trim()
+    })
+    detail.value.task = task
+    error.value = ''
+    emit('changed')
+    toast('归档信息已保存')
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '保存失败'
   } finally {
-    deleting.value = false
+    savingArchive.value = false
+  }
+}
+
+async function unarchive(): Promise<void> {
+  try {
+    await unarchiveTask(props.taskId)
+    emit('changed')
+    emit('close')
+    toast('已恢复到待办')
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '取消归档失败'
   }
 }
 
@@ -169,15 +249,28 @@ onMounted(load)
 
 const labelClass = 'mb-1 text-xs text-slate-500'
 const valueClass = 'text-sm leading-relaxed text-slate-800'
+const inputClass =
+  'rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500'
 </script>
 
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" @click.self="emit('close')">
     <div class="flex max-h-[84vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
       <header class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-        <h2 class="min-w-0 flex-1 truncate text-base font-semibold text-slate-900">
-          {{ detail?.task.title ?? '事务详情' }}
-        </h2>
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+          <h2
+            class="min-w-0 truncate text-base font-semibold text-slate-900"
+            :class="archived ? 'line-through decoration-slate-400' : ''"
+          >
+            {{ detail?.task.title ?? '事务详情' }}
+          </h2>
+          <span
+            v-if="archived"
+            class="flex-none rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500"
+          >
+            已归档
+          </span>
+        </div>
         <button class="text-slate-400 hover:text-slate-600" @click="emit('close')">✕</button>
       </header>
 
@@ -192,6 +285,7 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
           >
             {{ error }}
           </p>
+
           <div class="mb-4 flex flex-wrap items-center gap-2">
             <span
               class="rounded px-2 py-0.5 text-[11px] font-semibold text-white"
@@ -200,7 +294,7 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
               {{ PRIORITY_META[detail.task.priority].label }}
             </span>
             <span
-              v-if="isOverdue(detail.task.endAt)"
+              v-if="!archived && isOverdue(detail.task.endAt)"
               class="rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 ring-1 ring-rose-100"
             >
               已逾期
@@ -230,22 +324,14 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
                 :key="placement.id"
                 class="rounded-lg border border-slate-100 px-3 py-2 text-sm text-slate-700"
               >
-                <div
-                  v-if="editingId === placement.id"
-                  class="flex flex-wrap items-center gap-1.5"
-                >
-                  <input
-                    v-model="editDay"
-                    type="date"
-                    data-testid="edit-day"
-                    class="rounded-md border border-slate-200 px-2 py-1 text-xs outline-none focus:border-blue-500"
-                  />
+                <div v-if="editingId === placement.id" class="flex flex-wrap items-center gap-1.5">
+                  <input v-model="editDay" type="date" data-testid="edit-day" :class="inputClass" />
                   <input
                     v-model="editStart"
                     type="time"
                     step="300"
                     data-testid="edit-start"
-                    class="w-[84px] rounded-md border border-slate-200 px-2 py-1 text-xs outline-none focus:border-blue-500"
+                    :class="inputClass"
                   />
                   <span class="text-xs text-slate-400">–</span>
                   <input
@@ -253,14 +339,10 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
                     type="time"
                     step="300"
                     data-testid="edit-end"
-                    class="w-[84px] rounded-md border border-slate-200 px-2 py-1 text-xs outline-none focus:border-blue-500"
+                    :class="inputClass"
                   />
                   <span class="ml-auto flex items-center gap-2">
-                    <button
-                      type="button"
-                      class="text-xs text-slate-400 hover:text-slate-700"
-                      @click="editingId = null"
-                    >
+                    <button type="button" class="text-xs text-slate-400 hover:text-slate-700" @click="editingId = null">
                       取消
                     </button>
                     <button
@@ -279,42 +361,39 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
                   <span>{{ fmtPlacement(placement.day, placement.startMinute, placement.endMinute) }}</span>
                   <span class="flex items-center gap-3">
                     <span class="text-xs text-slate-400">{{ placement.adjusted ? '手动' : '自动' }}</span>
-                    <button
-                      type="button"
-                      class="text-xs text-slate-400 transition hover:text-blue-600"
-                      :data-testid="`edit-placement-${placement.id}`"
-                      @click="startEdit(placement)"
-                    >
-                      修改
-                    </button>
-                    <button
-                      type="button"
-                      class="text-xs text-slate-400 transition hover:text-rose-600"
-                      :data-testid="`remove-placement-${placement.id}`"
-                      @click="removePlacement(placement.id)"
-                    >
-                      移除
-                    </button>
+                    <template v-if="!archived">
+                      <button
+                        type="button"
+                        class="text-xs text-slate-400 transition hover:text-blue-600"
+                        :data-testid="`edit-placement-${placement.id}`"
+                        @click="startEdit(placement)"
+                      >
+                        修改
+                      </button>
+                      <button
+                        type="button"
+                        class="text-xs text-slate-400 transition hover:text-rose-600"
+                        :data-testid="`remove-placement-${placement.id}`"
+                        @click="removePlacement(placement.id)"
+                      >
+                        移除
+                      </button>
+                    </template>
                   </span>
                 </div>
               </li>
             </ul>
 
-            <div class="mt-3 rounded-lg bg-slate-50 p-2">
+            <div v-if="!archived" class="mt-3 rounded-lg bg-slate-50 p-2">
               <p class="mb-1.5 text-[11px] text-slate-500">手动添加时段</p>
               <div class="flex flex-wrap items-center gap-1.5">
-                <input
-                  v-model="manualDay"
-                  type="date"
-                  data-testid="manual-day"
-                  class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500"
-                />
+                <input v-model="manualDay" type="date" data-testid="manual-day" :class="inputClass" />
                 <input
                   v-model="manualStart"
                   type="time"
                   step="300"
                   data-testid="manual-start"
-                  class="w-[84px] rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500"
+                  :class="inputClass"
                 />
                 <span class="text-xs text-slate-400">–</span>
                 <input
@@ -322,7 +401,7 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
                   type="time"
                   step="300"
                   data-testid="manual-end"
-                  class="w-[84px] rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500"
+                  :class="inputClass"
                 />
                 <button
                   type="button"
@@ -335,6 +414,53 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
                 </button>
               </div>
             </div>
+          </div>
+
+          <div v-if="archived" class="mb-4 border-t border-slate-100 pt-3">
+            <p :class="labelClass">归档信息</p>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="w-14 text-xs text-slate-500">完成时间</span>
+                <input
+                  v-model="archiveForm.date"
+                  type="date"
+                  data-testid="archive-info-date"
+                  :class="inputClass"
+                />
+                <input
+                  v-model="archiveForm.time"
+                  type="time"
+                  step="300"
+                  data-testid="archive-info-time"
+                  :class="inputClass"
+                />
+              </div>
+              <div class="flex items-start gap-1.5">
+                <span class="w-14 flex-none pt-1 text-xs text-slate-500">备注</span>
+                <textarea
+                  v-model="archiveForm.note"
+                  rows="2"
+                  data-testid="archive-info-note"
+                  :class="inputClass"
+                  class="min-w-0 flex-1 resize-none"
+                  placeholder="归档备注"
+                />
+              </div>
+              <div class="flex justify-end">
+                <button
+                  type="button"
+                  data-testid="save-archive-info"
+                  class="rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-60"
+                  :disabled="savingArchive"
+                  @click="saveArchiveInfo"
+                >
+                  {{ savingArchive ? '保存中…' : '保存归档信息' }}
+                </button>
+              </div>
+            </div>
+            <p v-if="detail.task.archivedAt" class="mt-2 text-[11px] text-slate-400">
+              归档于 {{ fmtDateTime(detail.task.archivedAt) }}
+            </p>
           </div>
 
           <div class="border-t border-slate-100 pt-3">
@@ -356,14 +482,35 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
         <button class="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50" @click="emit('close')">
           关闭
         </button>
-        <button
-          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-          :disabled="!detail"
-          data-testid="edit-task"
-          @click="detail && emit('edit', detail.task)"
-        >
-          修改
-        </button>
+
+        <template v-if="archived">
+          <button
+            data-testid="unarchive-task"
+            class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            :disabled="!detail"
+            @click="unarchive"
+          >
+            取消归档
+          </button>
+        </template>
+        <template v-else>
+          <button
+            class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            data-testid="edit-task"
+            :disabled="!detail"
+            @click="detail && emit('edit', detail.task)"
+          >
+            修改
+          </button>
+          <button
+            data-testid="archive-task"
+            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+            :disabled="!detail"
+            @click="showArchiveDialog = true"
+          >
+            完成归档
+          </button>
+        </template>
       </footer>
     </div>
 
@@ -375,6 +522,13 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
       confirm-text="删除"
       @confirm="confirmDelete"
       @cancel="confirmingDelete = false"
+    />
+
+    <ArchiveDialog
+      v-if="showArchiveDialog && detail"
+      :title="detail.task.title"
+      @confirm="confirmArchive"
+      @cancel="showArchiveDialog = false"
     />
   </div>
 </template>

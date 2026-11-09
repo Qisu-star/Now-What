@@ -6,6 +6,7 @@ import {
   addDays,
   addMonths,
   dayLabel,
+  fmtDateTime,
   monthDay,
   monthLabel,
   monthStart,
@@ -38,6 +39,8 @@ const error = ref('')
 const showForm = ref(false)
 const editing = ref<Task | null>(null)
 const detailId = ref<string | null>(null)
+const tab = ref<'todo' | 'history'>('todo')
+const historySort = ref<'completed' | 'title'>('completed')
 
 const weekStart = computed(() => startOfWeek(anchor.value))
 const monthAnchor = computed(() => monthStart(anchor.value))
@@ -64,8 +67,12 @@ async function load(): Promise<void> {
   error.value = ''
   try {
     const { from, to } = range.value
-    const [taskList, placementList] = await Promise.all([fetchTasks(), fetchPlacements(from, to)])
-    tasks.value = taskList
+    const [activeList, archivedList, placementList] = await Promise.all([
+      fetchTasks('active'),
+      fetchTasks('archived'),
+      fetchPlacements(from, to)
+    ])
+    tasks.value = [...activeList, ...archivedList]
     placements.value = placementList
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
@@ -76,12 +83,23 @@ async function load(): Promise<void> {
 
 watch([view, anchor], load)
 
+const activeTasks = computed(() => tasks.value.filter((task) => task.status === 'active'))
+const archivedTasks = computed(() => tasks.value.filter((task) => task.status === 'archived'))
+
 const groups = computed(() =>
   PRIORITIES.map((priority) => ({
     priority,
-    items: sortTasks(tasks.value.filter((task) => task.priority === priority))
+    items: sortTasks(activeTasks.value.filter((task) => task.priority === priority))
   })).filter((group) => group.items.length > 0)
 )
+
+const historyList = computed(() => {
+  const list = [...archivedTasks.value]
+  if (historySort.value === 'title') {
+    return list.sort((a, b) => a.title.localeCompare(b.title, 'zh'))
+  }
+  return list.sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
+})
 
 function shift(step: number): void {
   if (view.value === 'day') anchor.value = addDays(anchor.value, step)
@@ -124,6 +142,12 @@ function onDeleted(): void {
   detailId.value = null
   void load()
   toast('已删除')
+}
+
+function onArchived(): void {
+  detailId.value = null
+  void load()
+  toast('已归档')
 }
 
 onMounted(() => {
@@ -234,10 +258,24 @@ onMounted(() => {
       />
 
       <aside class="flex w-[380px] flex-none flex-col border-l border-slate-200 bg-white">
-        <div class="flex h-14 flex-none items-center justify-between border-b border-slate-200 px-4">
-          <div class="flex items-baseline gap-2">
-            <h2 class="text-sm font-semibold">事务</h2>
-            <span class="text-xs text-slate-400">{{ tasks.length }}</span>
+        <div class="flex h-14 flex-none items-center justify-between border-b border-slate-200 px-3">
+          <div class="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+            <button
+              data-testid="tab-todo"
+              class="rounded-md px-2.5 py-1 text-xs transition"
+              :class="tab === 'todo' ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+              @click="tab = 'todo'"
+            >
+              待办 {{ activeTasks.length }}
+            </button>
+            <button
+              data-testid="tab-history"
+              class="rounded-md px-2.5 py-1 text-xs transition"
+              :class="tab === 'history' ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+              @click="tab = 'history'"
+            >
+              历史 {{ archivedTasks.length }}
+            </button>
           </div>
           <button
             data-testid="new-task"
@@ -261,25 +299,86 @@ onMounted(() => {
             <button class="ml-1 underline" @click="load">重试</button>
           </div>
 
-          <div
-            v-else-if="groups.length === 0"
-            class="rounded-xl border border-dashed border-slate-200 px-4 py-12 text-center text-sm text-slate-500"
-          >
-            还没有事务
-          </div>
+          <template v-else-if="tab === 'todo'">
+            <div
+              v-if="activeTasks.length === 0"
+              class="rounded-xl border border-dashed border-slate-200 px-4 py-12 text-center text-sm text-slate-500"
+            >
+              还没有事务
+            </div>
 
-          <div v-else>
-            <section v-for="group in groups" :key="group.priority" class="mb-4">
-              <div class="mb-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
-                <span class="h-1.5 w-1.5 rounded-full" :class="PRIORITY_META[group.priority].dot" />
-                <span class="font-semibold text-slate-700">{{ PRIORITY_META[group.priority].label }}</span>
-                <span>{{ group.items.length }}</span>
+            <div v-else>
+              <section v-for="group in groups" :key="group.priority" class="mb-4">
+                <div class="mb-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <span class="h-1.5 w-1.5 rounded-full" :class="PRIORITY_META[group.priority].dot" />
+                  <span class="font-semibold text-slate-700">{{ PRIORITY_META[group.priority].label }}</span>
+                  <span>{{ group.items.length }}</span>
+                </div>
+                <div class="grid grid-cols-1 gap-2">
+                  <TaskCard v-for="task in group.items" :key="task.id" :task="task" @open="openDetail" />
+                </div>
+              </section>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="mb-2 flex items-center justify-between px-1">
+              <span class="text-[11px] text-slate-400">共 {{ archivedTasks.length }} 条</span>
+              <div class="flex items-center gap-1 text-[11px]">
+                <button
+                  data-testid="sort-completed"
+                  class="transition"
+                  :class="historySort === 'completed' ? 'font-semibold text-slate-700' : 'text-slate-400 hover:text-slate-600'"
+                  @click="historySort = 'completed'"
+                >
+                  完成时间
+                </button>
+                <span class="text-slate-300">/</span>
+                <button
+                  data-testid="sort-title"
+                  class="transition"
+                  :class="historySort === 'title' ? 'font-semibold text-slate-700' : 'text-slate-400 hover:text-slate-600'"
+                  @click="historySort = 'title'"
+                >
+                  名称
+                </button>
               </div>
-              <div class="grid grid-cols-1 gap-2">
-                <TaskCard v-for="task in group.items" :key="task.id" :task="task" @open="openDetail" />
-              </div>
-            </section>
-          </div>
+            </div>
+
+            <div
+              v-if="historyList.length === 0"
+              class="rounded-xl border border-dashed border-slate-200 px-4 py-12 text-center text-sm text-slate-500"
+            >
+              还没有归档的事务
+            </div>
+
+            <div v-else class="flex flex-col gap-2">
+              <button
+                v-for="task in historyList"
+                :key="task.id"
+                data-testid="history-item"
+                class="flex flex-col gap-1 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white"
+                @click="openDetail(task.id)"
+              >
+                <div class="flex items-center gap-2">
+                  <span
+                    class="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-500 line-through decoration-slate-400"
+                  >
+                    {{ task.title }}
+                  </span>
+                  <span
+                    class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-70"
+                    :class="PRIORITY_META[task.priority].chip"
+                  >
+                    {{ PRIORITY_META[task.priority].label }}
+                  </span>
+                </div>
+                <span class="text-[11px] text-slate-400">
+                  完成于 {{ task.completedAt ? fmtDateTime(task.completedAt) : '—' }}
+                </span>
+              </button>
+            </div>
+          </template>
         </div>
       </aside>
     </div>
@@ -292,6 +391,7 @@ onMounted(() => {
       @edit="onEdit"
       @deleted="onDeleted"
       @changed="load"
+      @archived="onArchived"
     />
 
     <div

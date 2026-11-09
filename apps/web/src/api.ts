@@ -88,6 +88,33 @@ export function updateTask(id: string, patch: Partial<TaskInput>): Promise<TaskW
   })
 }
 
+export function archiveTask(
+  id: string,
+  input: { completedAt?: string; note?: string } = {}
+): Promise<{ task: Task }> {
+  return request<{ task: Task }>(`/api/v1/tasks/${id}/archive`, {
+    method: 'POST',
+    body: JSON.stringify(input)
+  })
+}
+
+export function updateArchiveInfo(
+  id: string,
+  input: { completedAt?: string; note?: string }
+): Promise<{ task: Task }> {
+  return request<{ task: Task }>(`/api/v1/tasks/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input)
+  })
+}
+
+export function unarchiveTask(id: string): Promise<{ task: Task }> {
+  return request<{ task: Task }>(`/api/v1/tasks/${id}/unarchive`, {
+    method: 'POST',
+    body: JSON.stringify({})
+  })
+}
+
 export function deleteTask(id: string): Promise<void> {
   return request<void>(`/api/v1/tasks/${id}`, { method: 'DELETE' })
 }

@@ -288,3 +288,45 @@ test('月视图行首可以看周预览并进入周表', async ({ page }) => {
   await page.getByTestId('enter-view').click()
   await expect(page.locator('.cal-col')).toHaveCount(7)
 })
+test('完成归档后进入历史，日程卡片变灰', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 归档',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 归档' }).click()
+  await page.getByTestId('archive-task').click()
+  await page.getByTestId('confirm-archive').click()
+  await expect(page.getByText('已归档')).toBeVisible()
+
+  await expect(page.locator('.task-card', { hasText: 'E2E 归档' })).toHaveCount(0)
+
+  await page.getByTestId('tab-history').click()
+  await expect(
+    page.locator('[data-testid="history-item"]', { hasText: 'E2E 归档' })
+  ).toBeVisible()
+
+  await expect(page.locator('.ev.archived', { hasText: 'E2E 归档' })).toBeVisible()
+})
+
+test('取消归档后回到待办', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 恢复',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 恢复' }).click()
+  await page.getByTestId('archive-task').click()
+  await page.getByTestId('confirm-archive').click()
+  await expect(page.getByText('已归档')).toBeVisible()
+
+  await page.getByTestId('tab-history').click()
+  await page.locator('[data-testid="history-item"]', { hasText: 'E2E 恢复' }).click()
+  await page.getByTestId('unarchive-task').click()
+  await expect(page.getByText('已恢复到待办')).toBeVisible()
+
+  await page.getByTestId('tab-todo').click()
+  await expect(page.locator('.task-card', { hasText: 'E2E 恢复' })).toBeVisible()
+})

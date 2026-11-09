@@ -16,6 +16,7 @@ const density = computed(() =>
 )
 /** 太矮的卡片放不下把手，只能移动；时长调整走详情里的手动录入 */
 const resizable = computed(() => height.value >= 40)
+const archived = computed(() => props.task.status === 'archived')
 
 const color = computed(() => taskColor(props.task.color))
 const priority = computed(() => PRIORITY_META[props.task.priority])
@@ -55,7 +56,7 @@ function onHandlePointerDown(edge: 'resize-start' | 'resize-end', event: Pointer
 </script>
 
 <template>
-  <div class="ev" :class="density" :style="style" @pointerdown="onBodyPointerDown" @click="onClick">
+  <div class="ev" :class="[density, { archived }]" :style="style" @pointerdown="onBodyPointerDown" @click="onClick">
     <span
       v-if="resizable"
       class="handle top"
@@ -70,12 +71,12 @@ function onHandlePointerDown(edge: 'resize-start' | 'resize-end', event: Pointer
     />
     <template v-if="density === 'compact'">
       <span class="h-1.5 w-1.5 flex-none rounded-full" :class="priority.dot" />
-      <span class="min-w-0 flex-1 truncate text-[10.5px] text-slate-900">{{ task.title }}</span>
+      <span class="ev-title min-w-0 flex-1 truncate text-[10.5px] text-slate-900">{{ task.title }}</span>
       <span class="flex-none text-[9.5px] tabular-nums text-slate-500">{{ deadline }}</span>
     </template>
     <template v-else>
       <div class="flex items-center gap-1.5">
-        <span class="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-900">
+        <span class="ev-title min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-900">
           {{ task.title }}
         </span>
         <span
@@ -155,6 +156,15 @@ function onHandlePointerDown(edge: 'resize-start' | 'resize-end', event: Pointer
 
 .handle.bottom::after {
   bottom: 2px;
+}
+
+.ev.archived {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.ev.archived .ev-title {
+  text-decoration: line-through;
 }
 
 .ev.compact {
