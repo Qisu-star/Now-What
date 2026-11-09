@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { fromLocalDayMinutes, toLocalDayMinutes } from '@nowwhat/shared'
+import { computed, reactive, ref } from 'vue'
+import { fromLocalDayMinutes, toLocalDayMinutes, type Placement } from '@nowwhat/shared'
 import { timeToMinutes, minutesToTime } from '../format'
 
-const props = defineProps<{ title: string }>()
+const props = defineProps<{ title: string; placements: Placement[] }>()
 const emit = defineEmits<{
   confirm: [payload: { completedAt?: string; note: string }]
   cancel: []
@@ -18,6 +18,15 @@ const form = reactive({
 
 const submitting = ref(false)
 const error = ref('')
+
+/** 完成时间之后的安排会在归档时被释放 */
+const futureCount = computed(() => {
+  const day = form.date
+  const minutes = timeToMinutes(form.time)
+  return props.placements.filter(
+    (placement) => placement.day > day || (placement.day === day && placement.startMinute >= minutes)
+  ).length
+})
 
 function submit(): void {
   error.value = ''
@@ -76,6 +85,14 @@ const inputClass =
             placeholder="例如：提前完成，效果不错"
           />
         </div>
+
+        <p
+          v-if="futureCount > 0"
+          data-testid="release-hint"
+          class="rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700"
+        >
+          该事务还有 {{ futureCount }} 个未来安排，归档后这些时段会被释放，可安排其他事务。
+        </p>
 
         <p v-if="error" class="text-xs text-rose-600">{{ error }}</p>
       </div>

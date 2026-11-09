@@ -73,6 +73,11 @@ export const taskResponseSchema = z.object({
   task: taskSchema
 })
 
+export const archiveResponseSchema = z.object({
+  task: taskSchema,
+  released: z.number().int()
+})
+
 export const taskListResponseSchema = z.object({
   tasks: z.array(taskSchema)
 })

@@ -36,13 +36,20 @@ const style = computed(() => ({
   backgroundColor: `color-mix(in srgb, ${color.value} 9%, white)`
 }))
 
-function onClick(): void {
+let downAt: { x: number; y: number } | null = null
+
+function onClick(event: MouseEvent): void {
   if (flags.suppressClick) return
+  const moved = downAt ? Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) : 0
+  downAt = null
+  // 已归档卡片只读：拖动视为误触，不打开详情
+  if (archived.value && moved > 4) return
   emit('open', props.task.id)
 }
 
 function onBodyPointerDown(event: PointerEvent): void {
   if (event.button !== 0) return
+  if (archived.value) return
   event.preventDefault()
   beginPlacementDrag(props.placement, 'move', event)
 }
@@ -56,15 +63,15 @@ function onHandlePointerDown(edge: 'resize-start' | 'resize-end', event: Pointer
 </script>
 
 <template>
-  <div class="ev" :class="[density, { archived }]" :style="style" @pointerdown="onBodyPointerDown" @click="onClick">
+  <div class="ev" :class="[density, { archived }]" :style="style" @pointerdown="onBodyPointerDown" @click="onClick($event)">
     <span
-      v-if="resizable"
+      v-if="resizable && !archived"
       class="handle top"
       aria-hidden="true"
       @pointerdown="onHandlePointerDown('resize-start', $event)"
     />
     <span
-      v-if="resizable"
+      v-if="resizable && !archived"
       class="handle bottom"
       aria-hidden="true"
       @pointerdown="onHandlePointerDown('resize-end', $event)"
@@ -161,6 +168,11 @@ function onHandlePointerDown(edge: 'resize-start' | 'resize-end', event: Pointer
 .ev.archived {
   filter: grayscale(1);
   opacity: 0.55;
+  cursor: default;
+}
+
+.ev.archived:active {
+  cursor: default;
 }
 
 .ev.archived .ev-title {

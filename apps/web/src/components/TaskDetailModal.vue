@@ -32,7 +32,7 @@ const emit = defineEmits<{
   edit: [task: TaskDetail['task']]
   deleted: []
   changed: []
-  archived: []
+  archived: [released: number]
 }>()
 
 const detail = ref<TaskDetail | null>(null)
@@ -205,8 +205,8 @@ async function addManualPlacement(): Promise<void> {
 async function confirmArchive(payload: { completedAt?: string; note: string }): Promise<void> {
   showArchiveDialog.value = false
   try {
-    await archiveTask(props.taskId, payload)
-    emit('archived')
+    const { released } = await archiveTask(props.taskId, payload)
+    emit('archived', released)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '归档失败'
   }
@@ -527,6 +527,7 @@ const inputClass =
     <ArchiveDialog
       v-if="showArchiveDialog && detail"
       :title="detail.task.title"
+      :placements="detail.placements"
       @confirm="confirmArchive"
       @cancel="showArchiveDialog = false"
     />

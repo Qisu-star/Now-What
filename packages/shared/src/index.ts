@@ -13,6 +13,7 @@ export { sortTasks } from './sort.ts'
 
 export {
   archiveInputSchema,
+  archiveResponseSchema,
   conflictErrorSchema,
   notFoundErrorSchema,
   placementInputSchema,

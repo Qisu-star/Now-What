@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import {
   archiveInputSchema,
+  archiveResponseSchema,
   conflictErrorSchema,
   notFoundErrorSchema,
   taskDetailResponseSchema,
@@ -136,7 +137,7 @@ export async function taskRoutes(app: FastifyInstance, deps: TaskRoutesDeps): Pr
         params: paramsSchema,
         body: archiveInputSchema,
         response: {
-          200: taskResponseSchema,
+          200: archiveResponseSchema,
           404: notFoundErrorSchema,
           409: conflictErrorSchema,
           422: validationErrorSchema
@@ -156,7 +157,7 @@ export async function taskRoutes(app: FastifyInstance, deps: TaskRoutesDeps): Pr
         }
         return reply.code(409).send({ error: { code: 'CONFLICT', message: '事务已归档' } })
       }
-      return reply.send({ task: result.task })
+      return reply.send({ task: result.task, released: result.released })
     }
   )
 

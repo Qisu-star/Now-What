@@ -144,10 +144,10 @@ function onDeleted(): void {
   toast('已删除')
 }
 
-function onArchived(): void {
+function onArchived(released: number): void {
   detailId.value = null
   void load()
-  toast('已归档')
+  toast(released > 0 ? `已归档，释放 ${released} 个未来安排` : '已归档')
 }
 
 onMounted(() => {

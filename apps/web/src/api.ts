@@ -91,8 +91,8 @@ export function updateTask(id: string, patch: Partial<TaskInput>): Promise<TaskW
 export function archiveTask(
   id: string,
   input: { completedAt?: string; note?: string } = {}
-): Promise<{ task: Task }> {
-  return request<{ task: Task }>(`/api/v1/tasks/${id}/archive`, {
+): Promise<{ task: Task; released: number }> {
+  return request<{ task: Task; released: number }>(`/api/v1/tasks/${id}/archive`, {
     method: 'POST',
     body: JSON.stringify(input)
   })

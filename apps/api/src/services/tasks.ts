@@ -20,7 +20,7 @@ export interface TaskPatch extends Partial<TaskInput> {
 }
 
 export type ArchiveResult =
-  | { ok: true; task: Task }
+  | { ok: true; task: Task; released: number }
   | { ok: false; code: 'NOT_FOUND' | 'CONFLICT' }
   | { ok: false; code: 'VALIDATION'; issues: ValidationIssue[] }
 
@@ -226,11 +226,25 @@ export function archiveTask(
   }
 
   const now = isoUtc(clock.now())
+  const completedAt = input.completedAt ?? now
+  const { day, minutes } = toLocalDayMinutes(completedAt)
+
+  // 完成时间之后的安排只是占位：归档时释放，把时间还给日程
+  const future = db
+    .select()
+    .from(placements)
+    .where(eq(placements.taskId, id))
+    .all()
+    .filter((row) => row.day > day || (row.day === day && row.startMinute >= minutes))
+
+  for (const row of future) {
+    db.delete(placements).where(eq(placements.id, row.id)).run()
+  }
 
   db.update(tasks)
     .set({
       status: 'archived',
-      completedAt: input.completedAt ?? now,
+      completedAt,
       archivedAt: now,
       note: input.note ?? existing.note,
       updatedAt: now
@@ -239,7 +253,7 @@ export function archiveTask(
     .run()
 
   const task = db.select().from(tasks).where(eq(tasks.id, id)).get()
-  return task ? { ok: true, task } : { ok: false, code: 'NOT_FOUND' }
+  return task ? { ok: true, task, released: future.length } : { ok: false, code: 'NOT_FOUND' }
 }
 
 export function unarchiveTask(db: AppDb, clock: Clock, id: string): ArchiveResult {
@@ -253,7 +267,7 @@ export function unarchiveTask(db: AppDb, clock: Clock, id: string): ArchiveResul
     .run()
 
   const task = db.select().from(tasks).where(eq(tasks.id, id)).get()
-  return task ? { ok: true, task } : { ok: false, code: 'NOT_FOUND' }
+  return task ? { ok: true, task, released: 0 } : { ok: false, code: 'NOT_FOUND' }
 }
 
 export function deleteTask(db: AppDb, id: string): boolean {

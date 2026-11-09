@@ -4,6 +4,8 @@ interface TaskOptions {
   title: string
   description?: string
   priority?: '首要' | '次要' | '普通' | '待定'
+  startDate?: string
+  startTime?: string
   endDate: string
   endTime: string
 }
@@ -18,6 +20,9 @@ async function createTask(page: Page, options: TaskOptions): Promise<void> {
   if (options.priority) {
     await form.getByRole('button', { name: options.priority, exact: true }).click()
   }
+
+  if (options.startDate) await page.getByTestId('start-date').fill(options.startDate)
+  if (options.startTime) await page.getByTestId('start-time').fill(options.startTime)
 
   await page.getByTestId('end-date').fill(options.endDate)
   await page.getByTestId('end-time').fill(options.endTime)
@@ -99,11 +104,14 @@ test('拖到已占用时段被拒绝且不产生新卡片', async ({ page }) => 
 
   await dragTaskToSlot(page, 'E2E 冲突甲', 3, 16)
   await expect(page.getByText('已安排')).toBeVisible()
-  const occupied = await page.locator('.ev').count()
+  // 自动落位 1 条 + 拖入 1 条
+  await expect(page.locator('.ev', { hasText: 'E2E 冲突甲' })).toHaveCount(2)
 
+  const beforeSecond = await page.locator('.ev', { hasText: 'E2E 冲突乙' }).count()
+  expect(beforeSecond).toBe(1)
   await dragTaskToSlot(page, 'E2E 冲突乙', 3, 16)
   await expect(page.getByText('该时段已被占用')).toBeVisible()
-  await expect(page.locator('.ev')).toHaveCount(occupied)
+  await expect(page.locator('.ev', { hasText: 'E2E 冲突乙' })).toHaveCount(beforeSecond)
 })
 
 test('修改截止时间后自动卡片跟随', async ({ page }) => {
@@ -297,6 +305,9 @@ test('完成归档后进入历史，日程卡片变灰', async ({ page }) => {
 
   await page.locator('.task-card', { hasText: 'E2E 归档' }).click()
   await page.getByTestId('archive-task').click()
+  // 完成时间设在安排之后，保留这段历史，卡片才会继续显示
+  await page.getByTestId('archive-date').fill('2026-11-10')
+  await page.getByTestId('archive-time').fill('20:00')
   await page.getByTestId('confirm-archive').click()
   await expect(page.getByText('已归档')).toBeVisible()
 
@@ -329,4 +340,61 @@ test('取消归档后回到待办', async ({ page }) => {
 
   await page.getByTestId('tab-todo').click()
   await expect(page.locator('.task-card', { hasText: 'E2E 恢复' })).toBeVisible()
+})
+test('归档时释放完成时间之后的安排', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 释放未来',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 释放未来' }).click()
+  await page.getByTestId('manual-day').fill('2026-11-12')
+  await page.getByTestId('manual-start').fill('09:00')
+  await page.getByTestId('manual-end').fill('10:00')
+  await page.getByTestId('add-placement').click()
+  await expect(page.getByText('已添加时段')).toBeVisible()
+
+  await page.getByTestId('archive-task').click()
+  await expect(page.getByTestId('release-hint')).toContainText('2 个未来安排')
+  await page.getByTestId('confirm-archive').click()
+
+  await expect(page.getByText('已归档，释放 2 个未来安排')).toBeVisible()
+  await expect(page.locator('.ev', { hasText: 'E2E 释放未来' })).toHaveCount(0)
+})
+
+test('已归档的日程卡片只读，不能被拖动', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 只读卡片',
+    startDate: '2026-11-09',
+    startTime: '08:00',
+    endDate: '2026-11-09',
+    endTime: '09:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 只读卡片' }).click()
+  await page.getByTestId('archive-task').click()
+  await page.getByTestId('archive-time').fill('12:00')
+  await page.getByTestId('confirm-archive').click()
+  await expect(page.getByText('已归档')).toBeVisible()
+
+  const card = page.locator('.ev.archived', { hasText: 'E2E 只读卡片' })
+  await expect(card).toBeVisible()
+  const before = await card.boundingBox()
+  if (!before) throw new Error('卡片未渲染')
+
+  const startX = before.x + before.width / 2
+  const startY = before.y + before.height / 2
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  for (let step = 1; step <= 6; step++) {
+    await page.mouse.move(startX + step * 18, startY + step * 12)
+  }
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+
+  await expect(page.getByText('已调整')).toHaveCount(0)
+  const after = await card.boundingBox()
+  if (!after) throw new Error('卡片消失了')
+  expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1)
 })

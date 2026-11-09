@@ -299,3 +299,40 @@ describe('归档', () => {
     expect(response.json().task.note).toBe('补记')
   })
 })
+describe('归档时释放未来安排', () => {
+  it('释放完成时间之后的安排，保留之前的', async () => {
+    const created = (await create()).json()
+    const taskId = created.task.id
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/placements',
+      payload: { taskId, day: '2026-11-08', startMinute: 600, endMinute: 660 }
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${taskId}/archive`,
+      payload: { completedAt: '2026-11-09T04:00:00Z' }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().released).toBe(1)
+
+    const detail = await app.inject({ method: 'GET', url: `/api/v1/tasks/${taskId}` })
+    expect(detail.json().placements.map((p: { day: string }) => p.day)).toEqual(['2026-11-08'])
+  })
+
+  it('没有未来安排时不释放', async () => {
+    const created = (await create()).json()
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${created.task.id}/archive`,
+      payload: { completedAt: '2026-11-11T04:00:00Z' }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().released).toBe(0)
+  })
+})
