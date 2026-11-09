@@ -149,7 +149,7 @@ pnpm check   # typecheck + test + build
 | 里程碑 | 状态 | 完成日期 | 备注 |
 | --- | --- | --- | --- |
 | M0 脚手架 | 完成 | 2026-11-08 | 健康检查链路已打通，见下方记录 |
-| M1 事务闭环 | 未开始 | | |
+| M1 事务闭环 | 完成 | 2026-11-09 | 见下方 M1 记录 |
 | M2 周视图与排期 | 未开始 | | |
 | M3 归档与历史 | 未开始 | | |
 | M4 日/月视图 | 未开始 | | |
@@ -163,3 +163,11 @@ pnpm check   # typecheck + test + build
 - 数据库迁移由 `drizzle-kit generate` 生成，启动时自动执行；`data/` 已在 `.gitignore` 中。
 - 契约链路已打通：zod schema → `apps/api/openapi.json`，可用 `pnpm --filter @nowwhat/api openapi` 重新生成。
 - pnpm 11 的配置集中在 `pnpm-workspace.yaml`（`nodeLinker: hoisted`、`strictDepBuilds: false`），`.npmrc` 不再生效。
+
+### M1 实现记录
+
+- shared 增加校验、时段运算、优先级排序、本地时间换算，共 34 条单元测试。
+- API 提供 `GET/POST/PATCH/DELETE /api/v1/tasks`，创建时自动落位，改截止时间时未手动调整的自动卡片跟随；集成测试 13 条。
+- 前端完成列表（按优先级分组、拼音排序、逾期标识）、创建/查看/编辑/删除弹窗。
+- 契约已包含事务接口，重生成命令：`pnpm --filter @nowwhat/api openapi`。
+- 开发便捷入口：`/?ui=create` 打开新建弹窗，`/?ui=detail&id=<taskId>` 打开详情。

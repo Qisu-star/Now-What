@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toLocalDayMinutes } from './time.ts'
+import { fromLocalDayMinutes, toLocalDayMinutes } from './time.ts'
 
 describe('toLocalDayMinutes', () => {
   it('UTC 10:00 是本地 18:00', () => {
@@ -18,5 +18,20 @@ describe('toLocalDayMinutes', () => {
 
   it('非法时间抛错', () => {
     expect(() => toLocalDayMinutes('nope')).toThrow()
+  })
+})
+
+describe('fromLocalDayMinutes', () => {
+  it('本地 18:00 是 UTC 10:00', () => {
+    expect(fromLocalDayMinutes('2026-11-10', 1080)).toBe('2026-11-10T10:00:00Z')
+  })
+
+  it('与 toLocalDayMinutes 互逆', () => {
+    const iso = fromLocalDayMinutes('2026-11-09', 30)
+    expect(toLocalDayMinutes(iso)).toEqual({ day: '2026-11-09', minutes: 30 })
+  })
+
+  it('非法日期抛错', () => {
+    expect(() => fromLocalDayMinutes('x', 0)).toThrow()
   })
 })

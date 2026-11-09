@@ -1,7 +1,7 @@
 export { fixedClock, isoUtc, systemClock } from './clock.ts'
 export type { Clock } from './clock.ts'
 
-export { APP_UTC_OFFSET_MINUTES, toLocalDayMinutes } from './time.ts'
+export { APP_UTC_OFFSET_MINUTES, fromLocalDayMinutes, toLocalDayMinutes } from './time.ts'
 
 export { DESCRIPTION_MAX_LENGTH, PRIORITIES, TITLE_MAX_WIDTH, textWidth, validateTaskInput } from './validate.ts'
 export type { TaskField, ValidationIssue } from './validate.ts'

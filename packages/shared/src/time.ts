@@ -19,3 +19,13 @@ export function toLocalDayMinutes(iso: string): { day: string; minutes: number }
   const minutes = local.getUTCHours() * 60 + local.getUTCMinutes()
   return { day, minutes }
 }
+
+/** 反向换算：本地日期 + 分钟数 → UTC 时刻 */
+export function fromLocalDayMinutes(day: string, minutes: number): string {
+  const [year, month, date] = day.split('-').map(Number)
+  if (!year || !month || !date) {
+    throw new Error(`invalid day: ${day}`)
+  }
+  const utc = Date.UTC(year, month - 1, date, 0, minutes) - APP_UTC_OFFSET_MINUTES * 60_000
+  return new Date(utc).toISOString().replace(/\.\d{3}Z$/, 'Z')
+}
