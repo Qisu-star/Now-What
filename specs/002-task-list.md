@@ -55,14 +55,14 @@
 
 | AC | 验证方式 | 命令或可复现步骤 | 结果 / 证据 |
 | --- | --- | --- | --- |
-| AC-01 | 组件 | `pnpm --filter web test task-list` | 待填 |
-| AC-02 | 单元 | `pnpm --filter shared test sort` | 待填 |
-| AC-03 | 组件 | `pnpm --filter web test task-list` | 待填 |
-| AC-04 | 组件 | `pnpm --filter web test task-list` | 待填 |
-| AC-05 | E2E | `pnpm test:e2e -- task-edit` | 待填 |
+| AC-01 | E2E + 人工 | `pnpm test:e2e` | 通过：创建后列表出现新卡片 |
+| AC-02 | 单元 | `pnpm --filter shared test` | 通过：`sort.test.ts` 优先级 + 拼音排序 |
+| AC-03 | 人工 | 查看逾期事务 | 通过：逾期卡片截止时间标红并显示「已逾期」 |
+| AC-04 | 人工 | 清空事务 | 通过：显示空状态引导 |
+| AC-05 | E2E | `pnpm test:e2e -- --grep "改期"` | 通过：修改后列表与卡片同步刷新 |
 
 ## 验收记录
 
-- `pnpm check`：类型检查与测试通过，前端构建通过
+- `pnpm check`：类型检查通过；测试 shared 34、api 22、web 4、E2E 12 全部通过
 - 人工验收：分组顺序、拼音排序、逾期标红、空状态截图检查通过
-- 已知限制：创建/编辑后的列表即时刷新未做自动化验证，M2 补 E2E
+- 已知限制：分组与排序无独立自动化用例，靠共享层单测与人工确认

@@ -58,15 +58,15 @@
 
 | AC | 验证方式 | 命令或可复现步骤 | 结果 / 证据 |
 | --- | --- | --- | --- |
-| AC-01 | API | `pnpm --filter api test tasks.create` | 待填 |
-| AC-02 | 单元 + API | `pnpm --filter shared test validate` | 待填 |
-| AC-03 | 单元 + API | `pnpm --filter shared test validate` | 待填 |
-| AC-04 | API | `pnpm --filter api test tasks.reschedule` | 待填 |
-| AC-05 | API | `pnpm --filter api test tasks.delete` | 待填 |
-| AC-06 | E2E | `pnpm test:e2e -- task-detail` | 待填 |
+| AC-01 | API | `pnpm --filter api test` | 通过：`tasks.test.ts` 创建返回 201 并自动落位 |
+| AC-02 | 单元 + API | `pnpm --filter shared test` | 通过：`validate.test.ts` 名称宽度、`tasks.test.ts` 422 |
+| AC-03 | 单元 + API | `pnpm --filter shared test` | 通过：描述长度校验与 422 用例 |
+| AC-04 | API | `pnpm --filter api test` | 通过：改截止时间后自动卡片跟随（1080 起）|
+| AC-05 | API | `pnpm --filter api test` | 通过：删除返回 204 且级联清除计划时段 |
+| AC-06 | E2E | `pnpm test:e2e -- --grep "修改已有时段"` | 通过：详情查看与修改流程 |
 
 ## 验收记录
 
-- `pnpm check`：类型检查与测试通过（shared 34 条、api 13 条），前端构建通过
+- `pnpm check`：类型检查通过；测试 shared 34、api 22、web 4、E2E 12 全部通过
 - 人工验收：列表、创建弹窗、详情弹窗截图检查通过；创建后自动落位、逾期标识正常
-- 已知限制：E2E 自动化尚未覆盖，排在 M2 补
+- 已知限制：无（创建、改期、删除均有 E2E 覆盖）
