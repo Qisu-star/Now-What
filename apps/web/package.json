@@ -11,7 +11,9 @@
     },
     "dependencies": {
         "@nowwhat/shared": "workspace:*",
-        "vue": "3.5.45"
+        "html-to-image": "^1.11.13",
+        "vue": "3.5.45",
+        "xlsx": "^0.18.5"
     },
     "devDependencies": {
         "@tailwindcss/vite": "4.3.5",

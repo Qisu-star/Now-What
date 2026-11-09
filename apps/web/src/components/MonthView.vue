@@ -111,7 +111,7 @@ function enterView(): void {
 </script>
 
 <template>
-  <section class="flex min-w-0 flex-1 flex-col bg-white">
+  <section class="flex min-w-0 flex-1 flex-col bg-white" data-export-root>
     <div class="grid border-b border-slate-200" :style="GRID_STYLE">
       <div class="border-r border-slate-100" />
       <div

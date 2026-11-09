@@ -1,3 +1,5 @@
+import { readFileSync, statSync } from 'node:fs'
+import * as XLSX from 'xlsx'
 import { expect, test, type Page } from '@playwright/test'
 
 interface TaskOptions {
@@ -486,4 +488,39 @@ test('归档时可以附加完成材料，并与事务附件分组显示', async
   await expect(page.getByText('完成附件', { exact: true })).toBeVisible()
   await expect(page.getByText('task.png')).toBeVisible()
   await expect(page.getByText('done.png')).toBeVisible()
+})
+test('可以导出当前视图的表格和图片', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 导出',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  const [xlsx] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-xlsx').click()
+  ])
+  expect(xlsx.suggestedFilename()).toMatch(/\.xlsx$/)
+  const xlsxPath = await xlsx.path()
+  expect(xlsxPath).toBeTruthy()
+  expect(statSync(xlsxPath!).size).toBeGreaterThan(1000)
+
+  const workbook = XLSX.read(readFileSync(xlsxPath!), { type: 'buffer' })
+  const sheet = workbook.Sheets[workbook.SheetNames[0]!]!
+  const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })
+  expect(JSON.stringify(rows)).toContain('时间')
+  expect(JSON.stringify(rows)).toContain('E2E 导出')
+
+  const [png] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-png').click()
+  ])
+  expect(png.suggestedFilename()).toMatch(/\.png$/)
+  const pngPath = await png.path()
+  expect(pngPath).toBeTruthy()
+  expect(statSync(pngPath!).size).toBeGreaterThan(1000)
+
+  // PNG 高度要覆盖完整 24 小时网格，而不是只截可见区域
+  const pngBuffer = readFileSync(pngPath!)
+  expect(pngBuffer.readUInt32BE(20)).toBeGreaterThan(1500)
 })

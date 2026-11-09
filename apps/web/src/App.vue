@@ -116,6 +116,29 @@ function onEnterView(kind: 'day' | 'week', day: string): void {
   view.value = kind
 }
 
+async function onExportTable(): Promise<void> {
+  try {
+    const { exportXlsx } = await import('./export')
+    exportXlsx(view.value, anchor.value, tasks.value, placements.value)
+  } catch {
+    toast('导出失败')
+  }
+}
+
+async function onExportImage(): Promise<void> {
+  const node = document.querySelector<HTMLElement>('[data-export-root]')
+  if (!node) {
+    toast('导出失败')
+    return
+  }
+  try {
+    const { exportPng } = await import('./export')
+    await exportPng(node, view.value, anchor.value)
+  } catch {
+    toast('导出失败')
+  }
+}
+
 function openCreate(): void {
   editing.value = null
   showForm.value = true
@@ -227,6 +250,22 @@ onMounted(() => {
           @click="goToday"
         >
           今天
+        </button>
+        <button
+          data-testid="export-xlsx"
+          class="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          title="导出当前视图为表格"
+          @click="onExportTable"
+        >
+          导出表格
+        </button>
+        <button
+          data-testid="export-png"
+          class="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          title="导出当前视图为图片"
+          @click="onExportImage"
+        >
+          导出图片
         </button>
       </div>
     </header>

@@ -65,7 +65,7 @@ watch(
 </script>
 
 <template>
-  <section class="flex min-w-0 flex-1 flex-col bg-white">
+  <section class="flex min-w-0 flex-1 flex-col bg-white" data-export-root>
     <div class="cal-head border-b border-slate-200" style="grid-template-columns: 56px 1fr">
       <div />
       <div class="flex items-center gap-2 border-l border-slate-100 px-3 py-2">
@@ -85,7 +85,7 @@ watch(
       </div>
     </div>
 
-    <div ref="scroller" class="flex-1 overflow-y-auto overflow-x-hidden">
+    <div ref="scroller" class="flex-1 overflow-y-auto overflow-x-hidden" data-export-scroll>
       <div ref="body" class="cal-body" style="grid-template-columns: 56px 1fr">
         <div class="gutter">
           <span v-for="hour in 24" :key="hour" :style="{ top: `${(hour - 1) * HOUR_PX}px` }">
