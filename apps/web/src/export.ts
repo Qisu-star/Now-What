@@ -3,11 +3,11 @@ import { toPng } from 'html-to-image'
 import type { Placement, Task } from '@nowwhat/shared'
 import {
   addDays,
-  dayLabel,
+  fmtDateTime,
+  fmtPlacement,
   minutesToTime,
   monthDay,
   monthGridDays,
-  monthLabel,
   monthStart,
   startOfWeek,
   weekdayShort,
@@ -35,17 +35,16 @@ function eventsOf(tasks: Task[], placements: Placement[], day: string): SlotEven
   return result.sort((a, b) => a.placement.startMinute - b.placement.startMinute)
 }
 
-export function exportRangeLabel(view: ViewId, anchor: string): string {
-  if (view === 'day') return dayLabel(anchor)
-  if (view === 'month') return monthLabel(anchor)
+function rangeKey(view: ViewId, anchor: string): string {
+  if (view === 'day') return anchor
+  if (view === 'month') return anchor.slice(0, 7)
   const start = startOfWeek(anchor)
-  return `${monthDay(start)}–${monthDay(addDays(start, 6))}`
+  return `${start}_${addDays(start, 6)}`
 }
 
 function fileName(view: ViewId, anchor: string, extension: string): string {
   const label = view === 'day' ? '日' : view === 'week' ? '周' : '月'
-  const range = exportRangeLabel(view, anchor).replace(/[／/年月日\s]/g, '-').replace(/-+/g, '-')
-  return `Now-What-${label}-${range}.${extension}`
+  return `Now-What-${label}-${rangeKey(view, anchor)}.${extension}`
 }
 
 function buildTimeGrid(view: ViewId, anchor: string, tasks: Task[], placements: Placement[]) {
@@ -102,6 +101,30 @@ export function exportXlsx(
     XLSX.utils.book_append_sheet(workbook, sheet, view === 'day' ? '日视图' : '周视图')
   }
 
+  const taskRows: (string | number)[][] = [['名称', '描述', '截止时间', '优先级', '计划时段']]
+  const ordered = [...tasks].sort((a, b) => a.endAt.localeCompare(b.endAt))
+
+  for (const task of ordered) {
+    const ranges = placements
+      .filter((placement) => placement.taskId === task.id)
+      .map((placement) =>
+        fmtPlacement(placement.day, placement.startMinute, placement.endMinute)
+      )
+      .join('\n')
+
+    taskRows.push([
+      task.title,
+      task.description,
+      fmtDateTime(task.endAt),
+      PRIORITY_META[task.priority].label,
+      ranges
+    ])
+  }
+
+  const taskSheet = XLSX.utils.aoa_to_sheet(taskRows)
+  taskSheet['!cols'] = [{ wch: 24 }, { wch: 50 }, { wch: 18 }, { wch: 8 }, { wch: 36 }]
+  XLSX.utils.book_append_sheet(workbook, taskSheet, '事务清单')
+
   XLSX.writeFile(workbook, fileName(view, anchor, 'xlsx'))
 }
 
@@ -116,7 +139,7 @@ function downloadDataUrl(dataUrl: string, name: string): void {
 
 /**
  * 导出当前视图为图片。
- * 时间网格在滚动容器里，先把容器撑到完整高度再截图，避免只截到可见区域。
+ * 时间网格在滚动容器里，先按真实宽度固定尺寸、把容器撑到完整高度，再整块截图。
  */
 export async function exportPng(
   node: HTMLElement,
@@ -126,33 +149,46 @@ export async function exportPng(
   const scroller = node.querySelector<HTMLElement>('[data-export-scroll]')
   const restores: (() => void)[] = []
 
+  const rect = node.getBoundingClientRect()
+  const width = Math.max(320, Math.ceil(rect.width))
+  let height = Math.ceil(rect.height)
+
   if (scroller) {
-    const previousHeight = scroller.style.height
-    const previousOverflow = scroller.style.overflowY
-    scroller.style.height = `${scroller.scrollHeight}px`
-    scroller.style.overflowY = 'visible'
+    const scrollerHeight = scroller.scrollHeight
+    const headerHeight = rect.height - scroller.getBoundingClientRect().height
+    height = Math.ceil(headerHeight + scrollerHeight)
+
+    const previous = scroller.style.cssText
+    scroller.style.height = `${scrollerHeight}px`
+    scroller.style.overflow = 'visible'
     restores.push(() => {
-      scroller.style.height = previousHeight
-      scroller.style.overflowY = previousOverflow
+      scroller.style.cssText = previous
     })
   }
 
-  const previousNodeHeight = node.style.height
-  const previousFlex = node.style.flex
-  node.style.height = 'auto'
-  node.style.flex = 'none'
+  const previousNode = node.style.cssText
+  node.style.width = `${width}px`
+  node.style.height = `${height}px`
+  node.style.flex = '0 0 auto'
+  node.style.overflow = 'visible'
   restores.push(() => {
-    node.style.height = previousNodeHeight
-    node.style.flex = previousFlex
+    node.style.cssText = previousNode
   })
 
   await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
 
   try {
     const dataUrl = await toPng(node, {
+      width,
+      height,
       pixelRatio: 2,
       backgroundColor: '#ffffff',
-      cacheBust: true
+      cacheBust: true,
+      style: {
+        width: `${width}px`,
+        height: `${height}px`,
+        margin: '0'
+      }
     })
     downloadDataUrl(dataUrl, fileName(view, anchor, 'png'))
   } finally {

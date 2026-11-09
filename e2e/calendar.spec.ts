@@ -30,7 +30,7 @@ async function createTask(page: Page, options: TaskOptions): Promise<void> {
   await page.getByTestId('end-time').fill(options.endTime)
   await page.getByTestId('save-task').click()
 
-  await expect(page.locator('.task-card', { hasText: options.title })).toBeVisible()
+  await expect(page.locator('.task-card', { hasText: options.title }).first()).toBeVisible()
 }
 
 /** 把右侧列表里的某张事务拖到日历第 columnIndex 列（0 = 周一）的指定小时 */
@@ -506,10 +506,17 @@ test('可以导出当前视图的表格和图片', async ({ page }) => {
   expect(statSync(xlsxPath!).size).toBeGreaterThan(1000)
 
   const workbook = XLSX.read(readFileSync(xlsxPath!), { type: 'buffer' })
+  expect(workbook.SheetNames).toContain('事务清单')
+
   const sheet = workbook.Sheets[workbook.SheetNames[0]!]!
   const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })
   expect(JSON.stringify(rows)).toContain('时间')
   expect(JSON.stringify(rows)).toContain('E2E 导出')
+
+  const listSheet = workbook.Sheets['事务清单']!
+  const listRows = XLSX.utils.sheet_to_json<string[]>(listSheet, { header: 1 })
+  expect(listRows[0]).toEqual(['名称', '描述', '截止时间', '优先级', '计划时段'])
+  expect(JSON.stringify(listRows)).toContain('E2E 描述')
 
   const [png] = await Promise.all([
     page.waitForEvent('download'),
@@ -520,7 +527,11 @@ test('可以导出当前视图的表格和图片', async ({ page }) => {
   expect(pngPath).toBeTruthy()
   expect(statSync(pngPath!).size).toBeGreaterThan(1000)
 
-  // PNG 高度要覆盖完整 24 小时网格，而不是只截可见区域
+  // PNG 要覆盖完整 24 小时网格，且保持日历的横向比例
   const pngBuffer = readFileSync(pngPath!)
-  expect(pngBuffer.readUInt32BE(20)).toBeGreaterThan(1500)
+  const pngWidth = pngBuffer.readUInt32BE(16)
+  const pngHeight = pngBuffer.readUInt32BE(20)
+  expect(pngHeight).toBeGreaterThan(1500)
+  expect(pngWidth).toBeGreaterThan(1200)
+  expect(pngWidth / pngHeight).toBeGreaterThan(0.4)
 })
