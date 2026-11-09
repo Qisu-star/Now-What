@@ -269,10 +269,22 @@ test('可以在日/周/月视图之间切换', async ({ page }) => {
   await expect(page.locator('.cal-col')).toHaveCount(7)
 })
 
-test('在月视图点某一天会进入日视图', async ({ page }) => {
+test('月视图点某天先看日预览，再进入日表', async ({ page }) => {
   await page.getByTestId('view-month').click()
   await expect(page.locator('.month-cell')).toHaveCount(42)
 
   await page.locator('.month-cell').nth(9).click()
+  await expect(page.getByTestId('enter-view')).toHaveText('进入日表')
+
+  await page.getByTestId('enter-view').click()
   await expect(page.locator('.cal-col')).toHaveCount(1)
+})
+
+test('月视图行首可以看周预览并进入周表', async ({ page }) => {
+  await page.getByTestId('view-month').click()
+  await page.locator('[data-testid="week-head"]').first().click()
+  await expect(page.getByTestId('enter-view')).toHaveText('进入周表')
+
+  await page.getByTestId('enter-view').click()
+  await expect(page.locator('.cal-col')).toHaveCount(7)
 })

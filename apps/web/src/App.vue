@@ -93,9 +93,9 @@ function goToday(): void {
   anchor.value = todayLocal()
 }
 
-function selectDay(day: string): void {
+function onEnterView(kind: 'day' | 'week', day: string): void {
   anchor.value = day
-  view.value = 'day'
+  view.value = kind
 }
 
 function openCreate(): void {
@@ -230,7 +230,7 @@ onMounted(() => {
         :tasks="tasks"
         :placements="placements"
         @open-task="openDetail"
-        @select-day="selectDay"
+        @enter-view="onEnterView"
       />
 
       <aside class="flex w-[380px] flex-none flex-col border-l border-slate-200 bg-white">

@@ -112,3 +112,8 @@ export function monthLabel(day: string): string {
 export function dayLabel(day: string): string {
   return `${monthDay(day)} ${weekdayShort(day)}`
 }
+/** 11/9 这种短日期，用于行首等窄位置 */
+export function shortDay(day: string): string {
+  const date = utcOf(day)
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`
+}
