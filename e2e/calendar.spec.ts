@@ -237,3 +237,20 @@ test('移动过程中预览高度始终不变', async ({ page }) => {
   expect(after).toBeTruthy()
   expect(Math.abs(after!.height - before.height)).toBeLessThanOrEqual(2)
 })
+test('可以在详情里修改已有时段', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 修改时段',
+    endDate: '2026-11-11',
+    endTime: '10:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 修改时段' }).click()
+  await page.locator('[data-testid^="edit-placement-"]').first().click()
+
+  await page.getByTestId('edit-start').fill('13:00')
+  await page.getByTestId('edit-end').fill('14:30')
+  await page.getByTestId('save-placement').click()
+
+  await expect(page.getByText('已更新时段')).toBeVisible()
+  await expect(page.getByText('11/11 周三 13:00–14:30')).toBeVisible()
+})

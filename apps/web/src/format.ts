@@ -17,6 +17,10 @@ export function fmtDateTime(iso: string): string {
   return `${month}/${day} ${weekday} ${time}`
 }
 
+export function minutesToTime(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+}
+
 export function timeToMinutes(time: string): number {
   const [hh, mm] = time.split(':').map(Number)
   return (hh ?? 0) * 60 + (mm ?? 0)
