@@ -11,5 +11,8 @@
     "check": "pnpm --filter @nowwhat/shared build && pnpm -r typecheck && pnpm -r test && pnpm --filter @nowwhat/web build",
     "db:generate": "pnpm --filter @nowwhat/api db:generate",
     "db:migrate": "pnpm --filter @nowwhat/api db:migrate"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.0"
   }
 }

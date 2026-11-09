@@ -24,10 +24,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    headers: { 'content-type': 'application/json' },
-    ...init
-  })
+  // 只有带请求体时才声明 content-type：否则 Fastify 会把空的 JSON 体判为 400
+  const headers = new Headers(init?.headers)
+  if (init?.body !== undefined && init.body !== null) {
+    headers.set('content-type', 'application/json')
+  }
+
+  const response = await fetch(path, { ...init, headers })
 
   if (response.status === 204) {
     return undefined as T
