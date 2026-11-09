@@ -31,6 +31,34 @@ export const placementSchema = z.object({
   adjusted: z.boolean()
 })
 
+export const placementInputSchema = z.object({
+  taskId: z.string(),
+  day: z.string(),
+  startMinute: z.number().int(),
+  endMinute: z.number().int()
+})
+
+export const placementUpdateSchema = z.object({
+  day: z.string().optional(),
+  startMinute: z.number().int().optional(),
+  endMinute: z.number().int().optional()
+})
+
+export const placementResponseSchema = z.object({
+  placement: placementSchema
+})
+
+export const placementListResponseSchema = z.object({
+  placements: z.array(placementSchema)
+})
+
+export const conflictErrorSchema = z.object({
+  error: z.object({
+    code: z.literal('CONFLICT'),
+    message: z.string()
+  })
+})
+
 export const taskListResponseSchema = z.object({
   tasks: z.array(taskSchema)
 })

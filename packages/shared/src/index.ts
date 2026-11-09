@@ -12,8 +12,13 @@ export type { Slot } from './slots.ts'
 export { sortTasks } from './sort.ts'
 
 export {
+  conflictErrorSchema,
   notFoundErrorSchema,
+  placementInputSchema,
+  placementListResponseSchema,
+  placementResponseSchema,
   placementSchema,
+  placementUpdateSchema,
   prioritySchema,
   taskDetailResponseSchema,
   taskInputSchema,
