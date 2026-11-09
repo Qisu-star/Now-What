@@ -20,6 +20,8 @@ export const drag = reactive({
   day: '',
   start: 0,
   end: 30,
+  /** 本次拖拽的固定时长（分钟）：移动时不随时长变化 */
+  duration: 60,
   valid: true,
   x: 0,
   y: 0
@@ -185,6 +187,7 @@ function onMove(event: PointerEvent): void {
   drag.day = column.day
   drag.start = start
   drag.end = end
+  drag.duration = end - start
   drag.x = event.clientX
   drag.y = event.clientY
   drag.valid = !hasConflict(getPlacements(), column.day, start, end, pending.placementId)

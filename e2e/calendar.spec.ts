@@ -196,3 +196,44 @@ test('可以在详情里手动添加计划时段', async ({ page }) => {
   await expect(page.getByText('已添加时段')).toBeVisible()
   await expect(page.locator('.ev', { hasText: 'E2E 手动时段' })).toBeVisible()
 })
+test('移动过程中预览高度始终不变', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 拖动稳定',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  const card = page.locator('.ev', { hasText: 'E2E 拖动稳定' })
+  const before = await card.boundingBox()
+  if (!before) throw new Error('卡片未渲染')
+
+  // 抓卡片主体（避开上下 6px 把手），拖动的过程中分多次采样预览高度
+  const startX = before.x + before.width / 2
+  const startY = before.y + before.height / 2
+
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+
+  const heights: number[] = []
+  for (let step = 1; step <= 6; step++) {
+    await page.mouse.move(startX + step * 18, startY + step * 18)
+    await page.waitForTimeout(60)
+
+    const preview = page.getByTestId('drag-preview')
+    if ((await preview.count()) > 0) {
+      const box = await preview.boundingBox()
+      if (box) heights.push(box.height)
+    }
+  }
+
+  await page.mouse.up()
+
+  expect(heights.length).toBeGreaterThan(2)
+  for (const height of heights) {
+    expect(Math.abs(height - heights[0]!)).toBeLessThanOrEqual(1)
+  }
+
+  const after = await card.boundingBox()
+  expect(after).toBeTruthy()
+  expect(Math.abs(after!.height - before.height)).toBeLessThanOrEqual(2)
+})

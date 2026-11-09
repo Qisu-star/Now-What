@@ -149,9 +149,10 @@ watch(
 
           <div
             v-if="drag.active && drag.day === day"
+            data-testid="drag-preview"
             class="pointer-events-none absolute left-0.5 right-0.5 z-10 rounded-md border-[1.5px] border-dashed"
             :class="drag.valid ? 'border-blue-500 bg-blue-500/10' : 'border-rose-500 bg-rose-500/10'"
-            :style="{ top: `${(drag.start / 60) * HOUR_PX}px`, height: `${((drag.end - drag.start) / 60) * HOUR_PX}px` }"
+            :style="{ top: `${(drag.start / 60) * HOUR_PX}px`, height: `${(drag.duration / 60) * HOUR_PX}px` }"
           />
         </div>
       </div>
