@@ -9,9 +9,6 @@ export type { TaskField, ValidationIssue } from './validate.ts'
 export { MINUTES_PER_DAY, clamp, findSlot, hasConflict, segmentsOverlap, snapMinute } from './slots.ts'
 export type { Slot } from './slots.ts'
 
-export { pickCard } from './hit.ts'
-export type { HitCard, HitEdge, HitResult } from './hit.ts'
-
 export { sortTasks } from './sort.ts'
 
 export {

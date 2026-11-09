@@ -1,17 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { pickCard, type Placement, type Task } from '@nowwhat/shared'
+import type { Placement, Task } from '@nowwhat/shared'
 import { ApiError, createPlacement, updatePlacement } from '../api'
 import { dayNumber, todayLocal, weekDays, weekdayIndex, weekdayShort } from '../format'
 import { toast } from '../toast'
-import {
-  beginPlacementDrag,
-  configureDrag,
-  drag,
-  HOUR_PX,
-  setDragColumns,
-  type DragPayload
-} from '../drag'
+import { configureDrag, drag, HOUR_PX, setDragColumns, type DragPayload } from '../drag'
 import EventCard from './EventCard.vue'
 
 const props = defineProps<{ weekStart: string; tasks: Task[]; placements: Placement[] }>()
@@ -58,32 +51,6 @@ function registerColumns(): void {
 
 function scrollToMorning(): void {
   if (scroller.value) scroller.value.scrollTop = 8 * HOUR_PX - 8
-}
-
-function onColumnPointerDown(day: string, event: PointerEvent): void {
-  if (event.button !== 0) return
-
-  const column = event.currentTarget as HTMLElement
-  const rect = column.getBoundingClientRect()
-  const y = event.clientY - rect.top
-  const list = eventsOf(day)
-
-  const hit = pickCard(
-    list.map((event) => ({
-      start: event.placement.startMinute,
-      end: event.placement.endMinute
-    })),
-    y,
-    HOUR_PX
-  )
-  if (!hit) return
-
-  const hitEvent = list[hit.index]
-  if (!hitEvent) return
-  const placement = hitEvent.placement
-
-  event.preventDefault()
-  beginPlacementDrag(placement, hit.edge === 'body' ? 'move' : hit.edge === 'start' ? 'resize-start' : 'resize-end', event)
 }
 
 async function handleDrop(payload: DragPayload): Promise<void> {
@@ -171,7 +138,6 @@ watch(
           :key="day"
           class="cal-col"
           :class="{ weekend: weekdayIndex(day) >= 5 }"
-          @pointerdown="onColumnPointerDown(day, $event)"
         >
           <EventCard
             v-for="event in eventsOf(day)"

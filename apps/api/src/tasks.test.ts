@@ -46,7 +46,7 @@ describe('POST /api/v1/tasks', () => {
     expect(body.placement).toMatchObject({
       day: '2026-11-10',
       startMinute: 1080,
-      endMinute: 1110,
+      endMinute: 1140,
       source: 'auto',
       adjusted: false
     })
@@ -83,7 +83,7 @@ describe('POST /api/v1/tasks', () => {
     expect(second.statusCode).toBe(201)
     expect(second.json().placement).toMatchObject({
       day: '2026-11-10',
-      startMinute: 1050,
+      startMinute: 1020,
       endMinute: 1080
     })
   })

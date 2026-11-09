@@ -112,10 +112,10 @@ export function beginTaskDrag(task: Task, event: PointerEvent): void {
     placementId: null,
     startX: event.clientX,
     startY: event.clientY,
-    grab: 15,
-    duration: 30,
+    grab: 30,
+    duration: 60,
     origStart: 0,
-    origEnd: 30
+    origEnd: 60
   }
   listen()
 }

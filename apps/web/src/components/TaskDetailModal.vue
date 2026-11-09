@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import type { TaskDetail } from '../api'
-import { deletePlacement, deleteTask, fetchTask, ApiError } from '../api'
+import { createPlacement, deletePlacement, deleteTask, fetchTask, ApiError } from '../api'
 import { PRIORITY_META } from '../theme'
-import { fmtDateTime, fmtPlacement, isOverdue } from '../format'
+import { fmtDateTime, fmtPlacement, isOverdue, localParts, timeToMinutes } from '../format'
 import { toast } from '../toast'
 import ConfirmDialog from './ConfirmDialog.vue'
 
@@ -20,12 +20,17 @@ const loading = ref(true)
 const error = ref('')
 const deleting = ref(false)
 const confirmingDelete = ref(false)
+const manualDay = ref('')
+const manualStart = ref('09:00')
+const manualEnd = ref('10:00')
+const addingManual = ref(false)
 
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
     detail.value = await fetchTask(props.taskId)
+    manualDay.value = localParts(detail.value.task.endAt).date
   } catch (err) {
     error.value = err instanceof ApiError ? err.message : '加载失败'
   } finally {
@@ -48,6 +53,49 @@ async function removePlacement(id: string): Promise<void> {
     toast('已从日程移除')
   } catch (err) {
     error.value = err instanceof Error ? err.message : '移除失败'
+  }
+}
+
+async function addManualPlacement(): Promise<void> {
+  if (!detail.value) return
+
+  const startMinute = timeToMinutes(manualStart.value)
+  const endMinute = timeToMinutes(manualEnd.value)
+
+  if (!manualDay.value) {
+    error.value = '请选择日期'
+    return
+  }
+  if (endMinute <= startMinute) {
+    error.value = '结束时间必须晚于开始时间'
+    return
+  }
+
+  addingManual.value = true
+  try {
+    const { placement } = await createPlacement({
+      taskId: props.taskId,
+      day: manualDay.value,
+      startMinute,
+      endMinute
+    })
+    const current = detail.value
+    if (current) {
+      current.placements = [...current.placements, placement].sort((a, b) =>
+        a.day === b.day ? a.startMinute - b.startMinute : a.day.localeCompare(b.day)
+      )
+    }
+    error.value = ''
+    emit('changed')
+    toast('已添加时段')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409) {
+      error.value = '该时段已被占用'
+    } else {
+      error.value = err instanceof Error ? err.message : '添加失败'
+    }
+  } finally {
+    addingManual.value = false
   }
 }
 
@@ -137,6 +185,42 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
                 </span>
               </li>
             </ul>
+
+            <div class="mt-3 rounded-lg bg-slate-50 p-2">
+              <p class="mb-1.5 text-[11px] text-slate-500">手动添加时段</p>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <input
+                  v-model="manualDay"
+                  type="date"
+                  data-testid="manual-day"
+                  class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500"
+                />
+                <input
+                  v-model="manualStart"
+                  type="time"
+                  step="300"
+                  data-testid="manual-start"
+                  class="w-[84px] rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500"
+                />
+                <span class="text-xs text-slate-400">–</span>
+                <input
+                  v-model="manualEnd"
+                  type="time"
+                  step="300"
+                  data-testid="manual-end"
+                  class="w-[84px] rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  data-testid="add-placement"
+                  class="ml-auto rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
+                  :disabled="addingManual"
+                  @click="addManualPlacement"
+                >
+                  {{ addingManual ? '添加中…' : '添加' }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="border-t border-slate-100 pt-3">

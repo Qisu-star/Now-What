@@ -45,7 +45,7 @@ function insertAutoPlacement(
   db: AppDb,
   taskId: string,
   endAt: string,
-  duration = 30
+  duration = 60
 ): Placement | null {
   const { day, minutes } = toLocalDayMinutes(endAt)
   const slot = findSlot(placementsOfDay(db, day), day, minutes, duration)

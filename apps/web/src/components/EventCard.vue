@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { Placement, Task } from '@nowwhat/shared'
 import { PRIORITY_META, taskColor } from '../theme'
 import { localParts } from '../format'
-import { flags } from '../drag'
+import { beginPlacementDrag, flags } from '../drag'
 
 const props = defineProps<{ task: Task; placement: Placement }>()
 const emit = defineEmits<{ open: [taskId: string] }>()
@@ -14,7 +14,7 @@ const height = computed(
 const density = computed(() =>
   height.value < 44 ? 'compact' : height.value >= 76 ? 'tall' : 'standard'
 )
-/** 与 shared 的命中规则保持一致：太矮的卡片不提供拉伸 */
+/** 太矮的卡片放不下把手，只能移动；时长调整走详情里的手动录入 */
 const resizable = computed(() => height.value >= 40)
 
 const color = computed(() => taskColor(props.task.color))
@@ -39,12 +39,35 @@ function onClick(): void {
   if (flags.suppressClick) return
   emit('open', props.task.id)
 }
+
+function onBodyPointerDown(event: PointerEvent): void {
+  if (event.button !== 0) return
+  event.preventDefault()
+  beginPlacementDrag(props.placement, 'move', event)
+}
+
+function onHandlePointerDown(edge: 'resize-start' | 'resize-end', event: PointerEvent): void {
+  if (event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+  beginPlacementDrag(props.placement, edge, event)
+}
 </script>
 
 <template>
-  <div class="ev" :class="density" :style="style" @click="onClick">
-    <span v-if="resizable" class="handle top" aria-hidden="true" />
-    <span v-if="resizable" class="handle bottom" aria-hidden="true" />
+  <div class="ev" :class="density" :style="style" @pointerdown="onBodyPointerDown" @click="onClick">
+    <span
+      v-if="resizable"
+      class="handle top"
+      aria-hidden="true"
+      @pointerdown="onHandlePointerDown('resize-start', $event)"
+    />
+    <span
+      v-if="resizable"
+      class="handle bottom"
+      aria-hidden="true"
+      @pointerdown="onHandlePointerDown('resize-end', $event)"
+    />
     <template v-if="density === 'compact'">
       <span class="h-1.5 w-1.5 flex-none rounded-full" :class="priority.dot" />
       <span class="min-w-0 flex-1 truncate text-[10.5px] text-slate-900">{{ task.title }}</span>
@@ -98,20 +121,40 @@ function onClick(): void {
   left: 0;
   right: 0;
   z-index: 2;
-  height: 5px;
+  height: 6px;
   cursor: ns-resize;
 }
 
-.handle:hover {
-  background: rgb(15 23 42 / 10%);
+.handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgb(15 23 42 / 18%);
+  opacity: 0;
+  transform: translateX(-50%);
+}
+
+.handle:hover::after {
+  opacity: 1;
 }
 
 .handle.top {
-  top: -1px;
+  top: 0;
+}
+
+.handle.top::after {
+  top: 2px;
 }
 
 .handle.bottom {
-  bottom: -1px;
+  bottom: 0;
+}
+
+.handle.bottom::after {
+  bottom: 2px;
 }
 
 .ev.compact {
