@@ -1,4 +1,5 @@
 import type { Attachment, Placement, Task, TaskInput } from '@nowwhat/shared'
+import { notifyChange } from './sync'
 
 export interface Health {
   status: 'ok'
@@ -32,7 +33,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   const response = await fetch(path, { ...init, headers })
 
+  const method = (init?.method ?? 'GET').toUpperCase()
+
   if (response.status === 204) {
+    if (method !== 'GET') notifyChange()
     return undefined as T
   }
 
@@ -48,6 +52,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     )
   }
 
+  if (method !== 'GET') notifyChange()
   return body as T
 }
 
@@ -183,6 +188,7 @@ export async function uploadAttachment(
     throw new ApiError(response.status, error?.message ?? `HTTP ${response.status}`)
   }
 
+  notifyChange()
   return (body as { attachment: Attachment }).attachment
 }
 

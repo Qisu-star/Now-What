@@ -577,3 +577,51 @@ test('同一天多次安排都会写入时间网格', async ({ page }) => {
   expect(text).toContain('07:10')
   expect(text).toContain('E2E 描述')
 })
+test('多个标签页之间会同步数据', async ({ context, page }) => {
+  await page.goto('/')
+  const second = await context.newPage()
+  await second.goto('/')
+  await expect(second.getByTestId('new-task')).toBeVisible()
+
+  await createTask(page, {
+    title: 'E2E 多标签同步',
+    endDate: '2026-11-12',
+    endTime: '09:00'
+  })
+
+  await expect(
+    second.locator('.task-card', { hasText: 'E2E 多标签同步' }).first()
+  ).toBeVisible()
+})
+
+test.describe('移动端', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('默认日视图，事务列表从抽屉打开', async ({ page }) => {
+    await page.goto('/')
+
+    // 窄屏默认日视图，导出按钮收进桌面端
+    await expect(page.locator('.cal-col')).toHaveCount(1)
+    await expect(page.getByTestId('export-xlsx')).toBeHidden()
+
+    const drawer = page.locator('aside')
+    const drawerX = async (): Promise<number> => (await drawer.boundingBox())?.x ?? 0
+
+    await expect.poll(drawerX).toBeGreaterThan(300)
+
+    await page.getByTestId('open-list').click({ timeout: 5000 })
+    await expect.poll(drawerX).toBeLessThan(120)
+
+    await page.getByTestId('close-list').click({ timeout: 5000 })
+    await expect.poll(drawerX).toBeGreaterThan(300)
+
+    // 从抽屉新建后弹窗打开，抽屉自动收起
+    await page.getByTestId('open-list').click({ timeout: 5000 })
+    await expect.poll(drawerX).toBeLessThan(120)
+    await page.getByTestId('new-task').click({ timeout: 5000 })
+    await expect(page.getByTestId('task-title')).toBeVisible()
+    await page.getByRole('button', { name: '取消', exact: true }).click({ timeout: 5000 })
+    await expect(page.getByTestId('task-title')).toHaveCount(0)
+    await expect.poll(drawerX).toBeGreaterThan(300)
+  })
+})

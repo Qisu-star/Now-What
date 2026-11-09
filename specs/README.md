@@ -15,12 +15,13 @@
 
 | 编号 | 文件 | 范围 | 状态 |
 | --- | --- | --- | --- |
-| 001 | [001-task-management.md](001-task-management.md) | 事务创建、查看、编辑、删除与校验 | 草案 |
-| 002 | [002-task-list.md](002-task-list.md) | 未完成事务列表：分组、排序、逾期标识 | 草案 |
-| 003 | [003-calendar-views.md](003-calendar-views.md) | 日 / 周 / 月视图、翻页、切换、月表进周 | 草案 |
-| 004 | [004-scheduling.md](004-scheduling.md) | 自动落位、拖拽、拉伸、时段独占 | 草案 |
-| 005 | [005-archive-history.md](005-archive-history.md) | 完成归档、历史列表、撤销归档 | 草案 |
-| 006 | [006-attachments-and-export.md](006-attachments-and-export.md) | 附件与导出 | 延后 |
+| 001 | [001-task-management.md](001-task-management.md) | 事务创建、查看、编辑、删除与校验 | 已实现 |
+| 002 | [002-task-list.md](002-task-list.md) | 未完成事务列表：分组、排序、逾期标识 | 已实现 |
+| 003 | [003-calendar-views.md](003-calendar-views.md) | 日 / 周 / 月视图、翻页、切换、月表周/日预览 | 已实现 |
+| 004 | [004-scheduling.md](004-scheduling.md) | 自动落位、拖拽、拉伸、时段独占 | 已实现 |
+| 005 | [005-archive-history.md](005-archive-history.md) | 完成归档、历史列表、撤销归档 | 已实现 |
+| 006 | [006-attachments-and-export.md](006-attachments-and-export.md) | 附件与导出 | 已实现 |
+| 007 | [007-mobile-and-sync.md](007-mobile-and-sync.md) | 移动端适配、多标签页同步 | 已实现 |
 
 ## 相关文档
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { PRIORITIES, sortTasks, type Placement, type Task } from '@nowwhat/shared'
 import { fetchPlacements, fetchTasks } from './api'
 import {
@@ -14,6 +14,7 @@ import {
   todayLocal
 } from './format'
 import { toast, toastMessage } from './toast'
+import { onRemoteChange } from './sync'
 import { PRIORITY_META } from './theme'
 import DayView from './components/DayView.vue'
 import WeekView from './components/WeekView.vue'
@@ -32,13 +33,15 @@ const VIEWS: { id: ViewId; label: string }[] = [
 
 const tasks = ref<Task[]>([])
 const placements = ref<Placement[]>([])
-const view = ref<ViewId>('week')
+const isCompact = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+const view = ref<ViewId>(isCompact ? 'day' : 'week')
 const anchor = ref(todayLocal())
 const loading = ref(true)
 const error = ref('')
 const showForm = ref(false)
 const editing = ref<Task | null>(null)
 const detailId = ref<string | null>(null)
+const mobileListOpen = ref(false)
 const tab = ref<'todo' | 'history'>('todo')
 const historySort = ref<'completed' | 'title'>('completed')
 
@@ -142,10 +145,12 @@ async function onExportImage(): Promise<void> {
 function openCreate(): void {
   editing.value = null
   showForm.value = true
+  mobileListOpen.value = false
 }
 
 function openDetail(id: string): void {
   detailId.value = id
+  mobileListOpen.value = false
 }
 
 function onSaved(): void {
@@ -173,7 +178,19 @@ function onArchived(released: number): void {
   toast(released > 0 ? `已归档，释放 ${released} 个未来安排` : '已归档')
 }
 
+let stopRemoteSync: (() => void) | null = null
+
+function onVisibilityChange(): void {
+  if (!document.hidden) void load()
+}
+
 onMounted(() => {
+  stopRemoteSync = onRemoteChange(() => {
+    void load()
+  })
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('focus', onVisibilityChange)
+
   const query = new URLSearchParams(location.search)
   const ui = query.get('ui')
   if (ui === 'create') showForm.value = true
@@ -183,11 +200,17 @@ onMounted(() => {
   }
   void load()
 })
+
+onUnmounted(() => {
+  stopRemoteSync?.()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('focus', onVisibilityChange)
+})
 </script>
 
 <template>
   <div class="flex h-screen flex-col bg-slate-50 text-slate-900">
-    <header class="flex h-14 flex-none items-center gap-4 border-b border-slate-200 bg-white px-4">
+    <header class="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 bg-white px-4 py-2 md:h-14 md:flex-nowrap md:py-0">
       <div class="flex items-center gap-2.5">
         <span
           class="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm"
@@ -207,7 +230,7 @@ onMounted(() => {
             <path d="M12 8.2V12l2.6 1.7" />
           </svg>
         </span>
-        <span class="text-sm font-semibold tracking-tight">Now What</span>
+        <span class="hidden text-sm font-semibold tracking-tight sm:inline">Now What</span>
       </div>
 
       <div class="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
@@ -227,7 +250,7 @@ onMounted(() => {
         </button>
       </div>
 
-      <div class="ml-auto flex items-center gap-1.5">
+      <div class="ml-auto flex w-full items-center justify-end gap-1.5 md:w-auto">
         <button
           class="grid h-7 w-7 place-items-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
           title="上一页"
@@ -235,7 +258,7 @@ onMounted(() => {
         >
           ‹
         </button>
-        <span class="min-w-[168px] text-center text-sm font-semibold tabular-nums">
+        <span class="min-w-[110px] text-center text-xs font-semibold tabular-nums sm:min-w-[168px] sm:text-sm">
           {{ title }}
         </span>
         <button
@@ -253,7 +276,7 @@ onMounted(() => {
         </button>
         <button
           data-testid="export-xlsx"
-          class="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          class="hidden rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 md:inline-block"
           title="导出当前视图为表格"
           @click="onExportTable"
         >
@@ -261,11 +284,18 @@ onMounted(() => {
         </button>
         <button
           data-testid="export-png"
-          class="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          class="hidden rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 md:inline-block"
           title="导出当前视图为图片"
           @click="onExportImage"
         >
           导出图片
+        </button>
+        <button
+          data-testid="open-list"
+          class="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 md:hidden"
+          @click="mobileListOpen = true"
+        >
+          事务
         </button>
       </div>
     </header>
@@ -296,7 +326,16 @@ onMounted(() => {
         @enter-view="onEnterView"
       />
 
-      <aside class="flex w-[380px] flex-none flex-col border-l border-slate-200 bg-white">
+      <div
+        v-if="mobileListOpen"
+        class="fixed inset-0 z-30 bg-slate-900/30 md:hidden"
+        @click="mobileListOpen = false"
+      />
+
+      <aside
+        class="fixed inset-y-0 right-0 z-40 flex w-[86vw] max-w-[380px] flex-none flex-col border-l border-slate-200 bg-white transition-transform md:static md:z-auto md:w-[380px] md:max-w-none md:translate-x-0"
+        :class="mobileListOpen ? 'translate-x-0' : 'translate-x-full'"
+      >
         <div class="flex h-14 flex-none items-center justify-between border-b border-slate-200 px-3">
           <div class="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
             <button
@@ -316,13 +355,22 @@ onMounted(() => {
               历史 {{ archivedTasks.length }}
             </button>
           </div>
-          <button
-            data-testid="new-task"
-            class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
-            @click="openCreate"
-          >
-            ＋ 新建
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              data-testid="new-task"
+              class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+              @click="openCreate"
+            >
+              ＋ 新建
+            </button>
+            <button
+              data-testid="close-list"
+              class="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-slate-50 md:hidden"
+              @click="mobileListOpen = false"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <div class="flex-1 overflow-y-auto px-3 py-3">
