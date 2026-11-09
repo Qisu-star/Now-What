@@ -30,3 +30,11 @@ export interface Placement {
   source: PlacementSource
   adjusted: boolean
 }
+export interface Attachment {
+  id: string
+  taskId: string
+  filename: string
+  mimeType: string
+  size: number
+  createdAt: string
+}

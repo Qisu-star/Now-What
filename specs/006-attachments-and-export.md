@@ -1,6 +1,6 @@
 # 006：附件与导出
 
-> 状态：延后
+> 状态：进行中（附件已实现，导出待做）
 > 关联事项：无
 > 关联 Spec：[001 事务管理](001-task-management.md)、[005 归档与历史](005-archive-history.md)
 
@@ -39,7 +39,7 @@
 
 - 结论：新增
 - 理由或影响摘要：附件需要 multipart 上传与文件流下载；导出在前端完成，不新增接口
-- OpenAPI operation：`POST /api/v1/attachments`、`GET /api/v1/attachments/{id}/content`、`DELETE /api/v1/attachments/{id}`
+- OpenAPI operation：`POST /api/v1/attachments`、`GET /api/v1/attachments?taskId=`、`GET /api/v1/attachments/{id}/content`、`DELETE /api/v1/attachments/{id}`
 - 迁移 / 废弃安排：不适用
 
 ## 验收标准
@@ -55,15 +55,15 @@
 
 | AC | 验证方式 | 命令或可复现步骤 | 结果 / 证据 |
 | --- | --- | --- | --- |
-| AC-01 | API | `pnpm --filter api test attachments.upload` | 待填 |
-| AC-02 | API | `pnpm --filter api test attachments.too-large` | 待填 |
-| AC-03 | API | `pnpm --filter api test attachments.bad-type` | 待填 |
-| AC-04 | E2E | `pnpm test:e2e -- attachment-preview` | 待填 |
-| AC-05 | E2E | `pnpm test:e2e -- export-xlsx` | 待填 |
-| AC-06 | E2E | `pnpm test:e2e -- export-png` | 待填 |
+| AC-01 | API | `pnpm --filter api test` | 通过：`attachments.test.ts` 上传 201、落盘、下载内容一致 |
+| AC-02 | API | `pnpm --filter api test` | 通过：25 MB 返回 413 |
+| AC-03 | API | `pnpm --filter api test` | 通过：`.exe` 返回 415 |
+| AC-04 | E2E | `pnpm test:e2e -- --grep "附件"` | 通过：图片内联预览、打开链接、两步删除 |
+| AC-05 | E2E | 待实现 | 未开始 |
+| AC-06 | E2E | 待实现 | 未开始 |
 
 ## 验收记录
 
-- `pnpm check`：未开始
-- 人工验收：不适用
-- 已知限制：本期（M0–M4）不实现，排在 M5。
+- `pnpm check`：类型检查通过；测试 shared 34、api 39、web 4、E2E 17
+- 人工验收：附件上传、缩略图、打开与删除截图确认
+- 已知限制：导出（AC-05/AC-06）未实现；`.md` 预览通过「打开」交给浏览器渲染，未做内嵌预览。

@@ -19,7 +19,8 @@ export default defineConfig({
     timeout: 30_000,
     env: {
       PORT: '3100',
-      DATABASE_URL: 'e2e/.tmp/e2e.db'
+      DATABASE_URL: 'e2e/.tmp/e2e.db',
+      UPLOAD_DIR: 'e2e/.tmp/uploads'
     }
   }
 })

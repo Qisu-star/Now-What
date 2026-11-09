@@ -111,3 +111,19 @@ export const notFoundErrorSchema = z.object({
     message: z.string()
   })
 })
+export const attachmentSchema = z.object({
+  id: z.string(),
+  taskId: z.string(),
+  filename: z.string(),
+  mimeType: z.string(),
+  size: z.number().int(),
+  createdAt: z.string()
+})
+
+export const attachmentListResponseSchema = z.object({
+  attachments: z.array(attachmentSchema)
+})
+
+export const attachmentResponseSchema = z.object({
+  attachment: attachmentSchema
+})

@@ -14,6 +14,9 @@ export { sortTasks } from './sort.ts'
 export {
   archiveInputSchema,
   archiveResponseSchema,
+  attachmentListResponseSchema,
+  attachmentResponseSchema,
+  attachmentSchema,
   conflictErrorSchema,
   notFoundErrorSchema,
   placementInputSchema,
@@ -34,6 +37,7 @@ export {
 } from './schema.ts'
 
 export type {
+  Attachment,
   Placement,
   PlacementSource,
   Priority,

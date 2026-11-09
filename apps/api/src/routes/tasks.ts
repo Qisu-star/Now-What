@@ -25,10 +25,12 @@ import {
   unarchiveTask,
   updateTask
 } from '../services/tasks.ts'
+import { removeTaskFiles } from '../services/attachments.ts'
 
 export interface TaskRoutesDeps {
   clock: Clock
   db: AppDb
+  uploadDir: string
 }
 
 const paramsSchema = z.object({ id: z.string() })
@@ -198,6 +200,7 @@ export async function taskRoutes(app: FastifyInstance, deps: TaskRoutesDeps): Pr
       }
     },
     async (request, reply) => {
+      removeTaskFiles(deps.db, deps.uploadDir, request.params.id)
       const removed = deleteTask(deps.db, request.params.id)
       if (!removed) {
         return reply.code(404).send({ error: { code: 'NOT_FOUND', message: '事务不存在' } })

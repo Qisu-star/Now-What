@@ -1,4 +1,4 @@
-import type { Placement, Task, TaskInput } from '@nowwhat/shared'
+import type { Attachment, Placement, Task, TaskInput } from '@nowwhat/shared'
 
 export interface Health {
   status: 'ok'
@@ -152,4 +152,35 @@ export function updatePlacement(
 
 export function deletePlacement(id: string): Promise<void> {
   return request<void>(`/api/v1/placements/${id}`, { method: 'DELETE' })
+}
+export async function fetchAttachments(taskId: string): Promise<Attachment[]> {
+  const body = await request<{ attachments: Attachment[] }>(
+    `/api/v1/attachments?taskId=${encodeURIComponent(taskId)}`
+  )
+  return body.attachments
+}
+
+export function attachmentUrl(id: string): string {
+  return `/api/v1/attachments/${id}/content`
+}
+
+export async function uploadAttachment(taskId: string, file: File): Promise<Attachment> {
+  const form = new FormData()
+  form.append('taskId', taskId)
+  form.append('file', file)
+
+  // FormData 必须让浏览器自己带 boundary，不能设置 content-type
+  const response = await fetch('/api/v1/attachments', { method: 'POST', body: form })
+  const body: unknown = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    const error = (body as { error?: { message?: string } } | null)?.error
+    throw new ApiError(response.status, error?.message ?? `HTTP ${response.status}`)
+  }
+
+  return (body as { attachment: Attachment }).attachment
+}
+
+export function deleteAttachment(id: string): Promise<void> {
+  return request<void>(`/api/v1/attachments/${id}`, { method: 'DELETE' })
 }

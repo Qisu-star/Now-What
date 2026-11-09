@@ -32,5 +32,21 @@ export const placements = sqliteTable(
   (table) => [index('placements_day_idx').on(table.day)]
 )
 
+export const attachments = sqliteTable(
+  'attachments',
+  {
+    id: text('id').primaryKey(),
+    taskId: text('task_id')
+      .notNull()
+      .references(() => tasks.id, { onDelete: 'cascade' }),
+    filename: text('filename').notNull(),
+    mimeType: text('mime_type').notNull(),
+    size: integer('size').notNull(),
+    createdAt: text('created_at').notNull()
+  },
+  (table) => [index('attachments_task_idx').on(table.taskId)]
+)
+
+export type AttachmentRow = typeof attachments.$inferSelect
 export type TaskRow = typeof tasks.$inferSelect
 export type PlacementRow = typeof placements.$inferSelect

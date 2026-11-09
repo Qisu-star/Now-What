@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { fromLocalDayMinutes, type Placement } from '@nowwhat/shared'
+import { fromLocalDayMinutes, type Attachment, type Placement } from '@nowwhat/shared'
 import type { TaskDetail } from '../api'
 import {
   archiveTask,
+  attachmentUrl,
   createPlacement,
+  deleteAttachment,
   deletePlacement,
   deleteTask,
+  fetchAttachments,
   fetchTask,
   unarchiveTask,
+  uploadAttachment,
   updateArchiveInfo,
   updatePlacement,
   ApiError
@@ -52,6 +56,11 @@ const editStart = ref('09:00')
 const editEnd = ref('10:00')
 const savingEdit = ref(false)
 
+const attachments = ref<Attachment[]>([])
+const uploading = ref(false)
+const attachmentError = ref('')
+const pendingDeleteAttachment = ref<string | null>(null)
+
 const archiveForm = reactive({ date: '', time: '09:00', note: '' })
 const savingArchive = ref(false)
 const showArchiveDialog = ref(false)
@@ -63,6 +72,7 @@ async function load(): Promise<void> {
   error.value = ''
   try {
     detail.value = await fetchTask(props.taskId)
+    attachments.value = await fetchAttachments(props.taskId)
     manualDay.value = localParts(detail.value.task.endAt).date
 
     if (detail.value.task.status === 'archived') {
@@ -231,6 +241,47 @@ async function saveArchiveInfo(): Promise<void> {
     error.value = err instanceof Error ? err.message : '保存失败'
   } finally {
     savingArchive.value = false
+  }
+}
+
+function isImage(item: Attachment): boolean {
+  return item.mimeType.startsWith('image/') || /\.(png|jpe?g)$/i.test(item.filename)
+}
+
+function formatSize(size: number): string {
+  return size >= 1024 * 1024
+    ? `${(size / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(size / 1024))} KB`
+}
+
+async function onFileChange(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  attachmentError.value = ''
+  uploading.value = true
+  try {
+    const attachment = await uploadAttachment(props.taskId, file)
+    attachments.value = [...attachments.value, attachment]
+    toast('附件已上传')
+  } catch (err) {
+    attachmentError.value = err instanceof Error ? err.message : '上传失败'
+  } finally {
+    uploading.value = false
+    input.value = ''
+  }
+}
+
+async function removeAttachment(id: string): Promise<void> {
+  attachmentError.value = ''
+  try {
+    await deleteAttachment(id)
+    attachments.value = attachments.value.filter((item) => item.id !== id)
+    pendingDeleteAttachment.value = null
+    toast('附件已删除')
+  } catch (err) {
+    attachmentError.value = err instanceof Error ? err.message : '删除失败'
   }
 }
 
@@ -464,8 +515,74 @@ const inputClass =
           </div>
 
           <div class="border-t border-slate-100 pt-3">
-            <p :class="labelClass">附件</p>
-            <p class="text-xs text-slate-500">附件功能在 M5 实现，本期先保留位置。</p>
+            <div class="mb-1.5 flex items-center justify-between">
+              <p class="text-xs text-slate-500">附件</p>
+              <label
+                class="cursor-pointer rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 transition hover:bg-slate-50"
+              >
+                {{ uploading ? '上传中…' : '上传文件' }}
+                <input
+                  type="file"
+                  class="hidden"
+                  accept=".md,.docx,.pdf,.jpg,.jpeg,.png"
+                  data-testid="attachment-input"
+                  @change="onFileChange"
+                />
+              </label>
+            </div>
+
+            <p v-if="attachmentError" class="mb-1 text-xs text-rose-600">{{ attachmentError }}</p>
+
+            <p v-if="attachments.length === 0" class="text-xs text-slate-500">
+              支持 .md / .docx / .pdf / .jpg / .png，单个不超过 20 MB。
+            </p>
+
+            <ul v-else class="flex flex-col gap-1.5">
+              <li
+                v-for="item in attachments"
+                :key="item.id"
+                class="rounded-lg border border-slate-100 px-3 py-2"
+              >
+                <div class="flex items-center gap-2 text-sm text-slate-700">
+                  <span class="min-w-0 flex-1 truncate">{{ item.filename }}</span>
+                  <span class="flex-none text-[11px] text-slate-400">{{ formatSize(item.size) }}</span>
+                  <a
+                    :href="attachmentUrl(item.id)"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="flex-none text-xs text-slate-400 transition hover:text-blue-600"
+                    data-testid="attachment-open"
+                  >
+                    打开
+                  </a>
+                  <button
+                    v-if="pendingDeleteAttachment === item.id"
+                    type="button"
+                    class="flex-none text-xs font-semibold text-rose-600"
+                    data-testid="attachment-delete-confirm"
+                    @click="removeAttachment(item.id)"
+                  >
+                    确认删除
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    class="flex-none text-xs text-slate-400 transition hover:text-rose-600"
+                    data-testid="attachment-delete"
+                    @click="pendingDeleteAttachment = item.id"
+                  >
+                    删除
+                  </button>
+                </div>
+                <img
+                  v-if="isImage(item)"
+                  :src="attachmentUrl(item.id)"
+                  :alt="item.filename"
+                  class="mt-2 max-h-40 rounded-md border border-slate-100 object-contain"
+                  data-testid="attachment-image"
+                />
+              </li>
+            </ul>
           </div>
         </template>
       </div>

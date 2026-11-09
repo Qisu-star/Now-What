@@ -398,3 +398,30 @@ test('已归档的日程卡片只读，不能被拖动', async ({ page }) => {
   if (!after) throw new Error('卡片消失了')
   expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1)
 })
+test('可以上传、预览和删除附件', async ({ page }) => {
+  await createTask(page, {
+    title: 'E2E 附件',
+    endDate: '2026-11-10',
+    endTime: '18:00'
+  })
+
+  await page.locator('.task-card', { hasText: 'E2E 附件' }).click()
+
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+  )
+  await page.getByTestId('attachment-input').setInputFiles({
+    name: 'dot.png',
+    mimeType: 'image/png',
+    buffer: png
+  })
+
+  await expect(page.getByText('附件已上传')).toBeVisible()
+  await expect(page.getByTestId('attachment-image')).toBeVisible()
+
+  await page.getByTestId('attachment-delete').click()
+  await page.getByTestId('attachment-delete-confirm').click()
+  await expect(page.getByText('附件已删除')).toBeVisible()
+  await expect(page.getByText('dot.png')).toHaveCount(0)
+})

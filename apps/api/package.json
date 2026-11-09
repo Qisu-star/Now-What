@@ -13,6 +13,7 @@
     "openapi": "node src/scripts/openapi.ts"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.1.8",
     "@fastify/static": "10.1.10",
     "@fastify/swagger": "9.9.3",
     "@nowwhat/shared": "workspace:*",

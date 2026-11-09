@@ -8,6 +8,13 @@
       "when": 1794149939522,
       "tag": "0000_jazzy_siren",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794209113017,
+      "tag": "0001_good_red_hulk",
+      "breakpoints": true
     }
   ]
 }

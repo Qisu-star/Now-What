@@ -14,9 +14,10 @@ const databaseFile = process.env.DATABASE_URL ?? path.join(repoRoot, 'data', 'no
 mkdirSync(path.dirname(databaseFile), { recursive: true })
 
 const { db, sqlite } = createDb(databaseFile)
+const uploadDir = process.env.UPLOAD_DIR ?? path.join(repoRoot, 'data', 'uploads')
 runMigrations(db)
 
-const app = await buildApp({ clock: systemClock, db, sqlite })
+const app = await buildApp({ clock: systemClock, db, sqlite, uploadDir })
 
 // 只有显式要求时才托管前端产物：开发环境由 Vite 提供页面
 const serveWeb = process.argv.includes('--serve-web')
