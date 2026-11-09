@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { Placement, Task } from '@nowwhat/shared'
-import { ApiError, createPlacement, updatePlacement } from '../api'
+import { applyDrop } from '../placementDrop'
 import { dayNumber, todayLocal, weekDays, weekdayIndex, weekdayShort } from '../format'
-import { toast } from '../toast'
 import { configureDrag, drag, HOUR_PX, setDragColumns, type DragPayload } from '../drag'
 import EventCard from './EventCard.vue'
 
@@ -53,40 +52,9 @@ function scrollToMorning(): void {
   if (scroller.value) scroller.value.scrollTop = 8 * HOUR_PX - 8
 }
 
-async function handleDrop(payload: DragPayload): Promise<void> {
-  if (!payload.valid) {
-    toast('该时段已被占用')
-    return
-  }
-
-  try {
-    if (payload.mode === 'create') {
-      await createPlacement({
-        taskId: payload.taskId,
-        day: payload.day,
-        startMinute: payload.start,
-        endMinute: payload.end
-      })
-      toast('已安排')
-    } else if (payload.placementId) {
-      await updatePlacement(payload.placementId, {
-        day: payload.day,
-        startMinute: payload.start,
-        endMinute: payload.end
-      })
-      toast('已调整')
-    }
-    emit('changed')
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 409) {
-      toast('该时段已被占用')
-    } else {
-      toast(error instanceof Error ? error.message : '操作失败')
-    }
-    emit('changed')
-  }
+function handleDrop(payload: DragPayload): void {
+  void applyDrop(payload, () => emit('changed'))
 }
-
 onMounted(async () => {
   configureDrag({ getPlacements: () => props.placements, onDrop: handleDrop })
   await nextTick()
@@ -159,45 +127,3 @@ watch(
     </div>
   </section>
 </template>
-
-<style scoped>
-.cal-head {
-  display: grid;
-  height: 57px;
-  flex: 0 0 57px;
-}
-
-.cal-body {
-  display: grid;
-  height: calc(24 * 56px);
-  position: relative;
-}
-
-.gutter {
-  position: relative;
-  border-right: 1px solid #eff1f4;
-}
-
-.gutter span {
-  position: absolute;
-  right: 8px;
-  transform: translateY(-50%);
-  font-size: 10.5px;
-  color: #98a0ac;
-  font-variant-numeric: tabular-nums;
-}
-
-.gutter span:first-child {
-  transform: none;
-}
-
-.cal-col {
-  position: relative;
-  border-left: 1px solid #eff1f4;
-  background-image: repeating-linear-gradient(to bottom, #eff1f4 0 1px, transparent 1px 56px);
-}
-
-.cal-col.weekend {
-  background-color: #fafbfc;
-}
-</style>

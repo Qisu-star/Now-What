@@ -2,29 +2,68 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { PRIORITIES, sortTasks, type Placement, type Task } from '@nowwhat/shared'
 import { fetchPlacements, fetchTasks } from './api'
-import { addDays, monthDay, startOfWeek, todayLocal } from './format'
+import {
+  addDays,
+  addMonths,
+  dayLabel,
+  monthDay,
+  monthLabel,
+  monthStart,
+  startOfWeek,
+  todayLocal
+} from './format'
 import { toast, toastMessage } from './toast'
 import { PRIORITY_META } from './theme'
+import DayView from './components/DayView.vue'
 import WeekView from './components/WeekView.vue'
+import MonthView from './components/MonthView.vue'
 import TaskCard from './components/TaskCard.vue'
 import TaskFormModal from './components/TaskFormModal.vue'
 import TaskDetailModal from './components/TaskDetailModal.vue'
 
+type ViewId = 'day' | 'week' | 'month'
+
+const VIEWS: { id: ViewId; label: string }[] = [
+  { id: 'day', label: '日' },
+  { id: 'week', label: '周' },
+  { id: 'month', label: '月' }
+]
+
 const tasks = ref<Task[]>([])
 const placements = ref<Placement[]>([])
-const weekStart = ref(startOfWeek(todayLocal()))
+const view = ref<ViewId>('week')
+const anchor = ref(todayLocal())
 const loading = ref(true)
 const error = ref('')
 const showForm = ref(false)
 const editing = ref<Task | null>(null)
 const detailId = ref<string | null>(null)
 
+const weekStart = computed(() => startOfWeek(anchor.value))
+const monthAnchor = computed(() => monthStart(anchor.value))
+
+const range = computed(() => {
+  if (view.value === 'day') return { from: anchor.value, to: anchor.value }
+  if (view.value === 'week') {
+    return { from: weekStart.value, to: addDays(weekStart.value, 6) }
+  }
+  const start = startOfWeek(monthAnchor.value)
+  return { from: start, to: addDays(start, 41) }
+})
+
+const title = computed(() => {
+  if (view.value === 'day') return dayLabel(anchor.value)
+  if (view.value === 'week') {
+    return `${monthDay(weekStart.value)} – ${monthDay(addDays(weekStart.value, 6))}`
+  }
+  return monthLabel(anchor.value)
+})
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const from = weekStart.value
-    const to = addDays(from, 6)
+    const { from, to } = range.value
     const [taskList, placementList] = await Promise.all([fetchTasks(), fetchPlacements(from, to)])
     tasks.value = taskList
     placements.value = placementList
@@ -35,11 +74,7 @@ async function load(): Promise<void> {
   }
 }
 
-watch(weekStart, load)
-
-const weekLabel = computed(
-  () => `${monthDay(weekStart.value)} – ${monthDay(addDays(weekStart.value, 6))}`
-)
+watch([view, anchor], load)
 
 const groups = computed(() =>
   PRIORITIES.map((priority) => ({
@@ -48,12 +83,19 @@ const groups = computed(() =>
   })).filter((group) => group.items.length > 0)
 )
 
-function shiftWeek(offset: number): void {
-  weekStart.value = addDays(weekStart.value, offset)
+function shift(step: number): void {
+  if (view.value === 'day') anchor.value = addDays(anchor.value, step)
+  else if (view.value === 'week') anchor.value = addDays(anchor.value, step * 7)
+  else anchor.value = addMonths(anchor.value, step)
 }
 
 function goToday(): void {
-  weekStart.value = startOfWeek(todayLocal())
+  anchor.value = todayLocal()
+}
+
+function selectDay(day: string): void {
+  anchor.value = day
+  view.value = 'day'
 }
 
 function openCreate(): void {
@@ -121,21 +163,38 @@ onMounted(() => {
         <span class="text-sm font-semibold tracking-tight">Now What</span>
       </div>
 
+      <div class="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+        <button
+          v-for="item in VIEWS"
+          :key="item.id"
+          :data-testid="`view-${item.id}`"
+          class="rounded-md px-2.5 py-1 text-xs transition"
+          :class="
+            view === item.id
+              ? 'bg-white font-semibold text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          "
+          @click="view = item.id"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+
       <div class="ml-auto flex items-center gap-1.5">
         <button
           class="grid h-7 w-7 place-items-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
-          title="上一周"
-          @click="shiftWeek(-7)"
+          title="上一页"
+          @click="shift(-1)"
         >
           ‹
         </button>
         <span class="min-w-[168px] text-center text-sm font-semibold tabular-nums">
-          {{ weekLabel }}
+          {{ title }}
         </span>
         <button
           class="grid h-7 w-7 place-items-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
-          title="下一周"
-          @click="shiftWeek(7)"
+          title="下一页"
+          @click="shift(1)"
         >
           ›
         </button>
@@ -149,12 +208,29 @@ onMounted(() => {
     </header>
 
     <div class="flex min-h-0 flex-1">
+      <DayView
+        v-if="view === 'day'"
+        :day="anchor"
+        :tasks="tasks"
+        :placements="placements"
+        @changed="load"
+        @open-task="openDetail"
+      />
       <WeekView
+        v-else-if="view === 'week'"
         :week-start="weekStart"
         :tasks="tasks"
         :placements="placements"
         @changed="load"
         @open-task="openDetail"
+      />
+      <MonthView
+        v-else
+        :month="monthAnchor"
+        :tasks="tasks"
+        :placements="placements"
+        @open-task="openDetail"
+        @select-day="selectDay"
       />
 
       <aside class="flex w-[380px] flex-none flex-col border-l border-slate-200 bg-white">
@@ -164,8 +240,8 @@ onMounted(() => {
             <span class="text-xs text-slate-400">{{ tasks.length }}</span>
           </div>
           <button
-            class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
             data-testid="new-task"
+            class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
             @click="openCreate"
           >
             ＋ 新建

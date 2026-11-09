@@ -227,6 +227,8 @@ test('移动过程中预览高度始终不变', async ({ page }) => {
   }
 
   await page.mouse.up()
+  await expect(page.getByText('已调整')).toBeVisible()
+  await expect(card).toBeVisible()
 
   expect(heights.length).toBeGreaterThan(2)
   for (const height of heights) {
@@ -253,4 +255,24 @@ test('可以在详情里修改已有时段', async ({ page }) => {
 
   await expect(page.getByText('已更新时段')).toBeVisible()
   await expect(page.getByText('11/11 周三 13:00–14:30')).toBeVisible()
+})
+test('可以在日/周/月视图之间切换', async ({ page }) => {
+  await expect(page.locator('.cal-col')).toHaveCount(7)
+
+  await page.getByTestId('view-day').click()
+  await expect(page.locator('.cal-col')).toHaveCount(1)
+
+  await page.getByTestId('view-month').click()
+  await expect(page.locator('.month-cell')).toHaveCount(42)
+
+  await page.getByTestId('view-week').click()
+  await expect(page.locator('.cal-col')).toHaveCount(7)
+})
+
+test('在月视图点某一天会进入日视图', async ({ page }) => {
+  await page.getByTestId('view-month').click()
+  await expect(page.locator('.month-cell')).toHaveCount(42)
+
+  await page.locator('.month-cell').nth(9).click()
+  await expect(page.locator('.cal-col')).toHaveCount(1)
 })

@@ -88,3 +88,27 @@ export function monthDay(day: string): string {
   const date = utcOf(day)
   return `${date.getUTCMonth() + 1}月${date.getUTCDate()}日`
 }
+export function monthStart(day: string): string {
+  return `${day.slice(0, 7)}-01`
+}
+
+export function addMonths(day: string, offset: number): string {
+  const date = utcOf(day)
+  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + offset, 1))
+  return `${target.getUTCFullYear()}-${pad(target.getUTCMonth() + 1)}-01`
+}
+
+/** 月视图固定 6 行 42 天，从所在周的周一开始 */
+export function monthGridDays(day: string): string[] {
+  const start = startOfWeek(monthStart(day))
+  return Array.from({ length: 42 }, (_, index) => addDays(start, index))
+}
+
+export function monthLabel(day: string): string {
+  const date = utcOf(day)
+  return `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月`
+}
+
+export function dayLabel(day: string): string {
+  return `${monthDay(day)} ${weekdayShort(day)}`
+}
