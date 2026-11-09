@@ -130,13 +130,13 @@ const inputClass =
       <div class="flex max-h-[70vh] flex-col gap-4 overflow-y-auto px-5 py-4">
         <div>
           <label class="mb-1 block text-xs text-slate-500">名称 *</label>
-          <input v-model="form.title" :class="inputClass" placeholder="例如：数据结构作业" />
+          <input v-model="form.title" data-testid="task-title" :class="inputClass" placeholder="例如：数据结构作业" />
           <p v-if="errors.title" class="mt-1 text-xs text-rose-600">{{ errors.title }}</p>
         </div>
 
         <div>
           <label class="mb-1 block text-xs text-slate-500">描述 *</label>
-          <textarea v-model="form.description" :class="inputClass" rows="3" placeholder="写清楚要做什么" />
+          <textarea v-model="form.description" data-testid="task-description" :class="inputClass" rows="3" placeholder="写清楚要做什么" />
           <p v-if="errors.description" class="mt-1 text-xs text-rose-600">{{ errors.description }}</p>
         </div>
 
@@ -161,13 +161,13 @@ const inputClass =
           <label class="mb-1 block text-xs text-slate-500">事务周期 *</label>
           <div class="flex items-center gap-2">
             <span class="w-8 shrink-0 text-xs text-slate-500">开始</span>
-            <input v-model="form.startDate" type="date" :class="inputClass" />
-            <input v-model="form.startTime" type="time" step="300" class="w-28 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            <input v-model="form.startDate" data-testid="start-date" type="date" :class="inputClass" />
+            <input v-model="form.startTime" data-testid="start-time" type="time" step="300" class="w-28 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
           </div>
           <div class="mt-2 flex items-center gap-2">
             <span class="w-8 shrink-0 text-xs text-slate-500">截止</span>
-            <input v-model="form.endDate" type="date" :class="inputClass" />
-            <input v-model="form.endTime" type="time" step="300" class="w-28 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            <input v-model="form.endDate" data-testid="end-date" type="date" :class="inputClass" />
+            <input v-model="form.endTime" data-testid="end-time" type="time" step="300" class="w-28 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
           </div>
           <p v-if="errors.startAt || errors.endAt" class="mt-1 text-xs text-rose-600">
             {{ errors.startAt || errors.endAt }}
@@ -183,6 +183,7 @@ const inputClass =
         </button>
         <button
           type="submit"
+          data-testid="save-task"
           class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           :disabled="saving"
         >

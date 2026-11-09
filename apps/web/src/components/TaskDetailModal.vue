@@ -121,6 +121,7 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
         <button
           class="mr-auto rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 hover:bg-rose-100 disabled:opacity-60"
           :disabled="!detail || deleting"
+          data-testid="delete-task"
           @click="askDelete"
         >
           {{ deleting ? '删除中…' : '删除' }}
@@ -131,6 +132,7 @@ const valueClass = 'text-sm leading-relaxed text-slate-800'
         <button
           class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           :disabled="!detail"
+          data-testid="edit-task"
           @click="detail && emit('edit', detail.task)"
         >
           修改

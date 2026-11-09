@@ -24,6 +24,7 @@ function onClick(): void {
 
 <template>
   <button
+    data-testid="task-card"
     class="task-card flex w-full touch-none select-none flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md"
     :style="{ borderTop: `3px solid ${taskColor(task.color)}` }"
     @pointerdown="onPointerDown"

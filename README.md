@@ -43,7 +43,9 @@ pnpm dev
 | `pnpm dev` | 同时启动 Vite 与 Fastify |
 | `pnpm build` | 构建 `shared` 与前端产物 |
 | `pnpm start` | 单进程启动，Fastify 托管前端与 API（3000 端口） |
-| `pnpm check` | 类型检查 + 测试 + 构建 |
+| `pnpm check` | 类型检查 + 单元/集成测试 + 构建 |
+| `pnpm e2e` | 构建后跑 Playwright 端到端测试（复用本机 Edge） |
+| `pnpm test:e2e` | 直接跑 E2E，要求已有构建产物 |
 | `pnpm db:generate` | 根据 schema 生成迁移 |
 | `pnpm db:migrate` | 执行迁移 |
 | `pnpm --filter @nowwhat/api openapi` | 重新生成 `apps/api/openapi.json` |

@@ -41,6 +41,7 @@ onMounted(() => {
           ref="cancelButton"
           type="button"
           class="rounded-lg px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+          data-testid="cancel-action"
           @click="emit('cancel')"
         >
           {{ cancelText }}
@@ -53,6 +54,7 @@ onMounted(() => {
               ? 'bg-rose-600 hover:bg-rose-700 focus-visible:ring-rose-300'
               : 'bg-blue-600 hover:bg-blue-700 focus-visible:ring-blue-300'
           "
+          data-testid="confirm-action"
           @click="emit('confirm')"
         >
           {{ confirmText }}

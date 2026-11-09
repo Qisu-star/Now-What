@@ -8,11 +8,14 @@
     "build": "pnpm --filter @nowwhat/shared build && pnpm --filter @nowwhat/web build",
     "start": "pnpm --filter @nowwhat/api start",
     "test": "pnpm -r test",
+    "test:e2e": "playwright test",
+    "e2e": "node -e \"require('node:fs').rmSync('e2e/.tmp', { recursive: true, force: true })\" && pnpm build && playwright test",
     "check": "pnpm --filter @nowwhat/shared build && pnpm -r typecheck && pnpm -r test && pnpm --filter @nowwhat/web build",
     "db:generate": "pnpm --filter @nowwhat/api db:generate",
     "db:migrate": "pnpm --filter @nowwhat/api db:migrate"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "playwright-core": "^1.65.0"
   }
 }

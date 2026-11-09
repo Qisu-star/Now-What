@@ -165,6 +165,7 @@ onMounted(() => {
           </div>
           <button
             class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+            data-testid="new-task"
             @click="openCreate"
           >
             ＋ 新建
