@@ -1,26 +1,29 @@
-{
-  "name": "@nowwhat/shared",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --pool=threads"
-  },
-  "devDependencies": {
-    "typescript": "5.9.3",
-    "vitest": "5.1.0"
-  }
+﻿{
+    "name":  "@nowwhat/shared",
+    "version":  "0.0.0",
+    "private":  true,
+    "type":  "module",
+    "main":  "./dist/index.js",
+    "types":  "./dist/index.d.ts",
+    "exports":  {
+                    ".":  {
+                              "types":  "./dist/index.d.ts",
+                              "import":  "./dist/index.js"
+                          }
+                },
+    "files":  [
+                  "dist"
+              ],
+    "scripts":  {
+                    "build":  "tsc -p tsconfig.build.json",
+                    "typecheck":  "tsc --noEmit",
+                    "test":  "vitest run --pool=threads"
+                },
+    "devDependencies":  {
+                            "typescript":  "5.9.3",
+                            "vitest":  "5.1.0"
+                        },
+    "dependencies":  {
+                         "zod":  "4.6.7"
+                     }
 }

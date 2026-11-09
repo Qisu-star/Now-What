@@ -10,6 +10,7 @@ import {
 import type { Clock } from '@nowwhat/shared'
 import type { AppDb } from './db/client.ts'
 import { healthRoutes } from './routes/health.ts'
+import { taskRoutes } from './routes/tasks.ts'
 
 export interface AppDeps {
   clock: Clock
@@ -36,6 +37,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   })
 
   app.register(healthRoutes, deps)
+  app.register(taskRoutes, deps)
 
   return app
 }
