@@ -91,3 +91,34 @@ export function updateTask(id: string, patch: Partial<TaskInput>): Promise<TaskW
 export function deleteTask(id: string): Promise<void> {
   return request<void>(`/api/v1/tasks/${id}`, { method: 'DELETE' })
 }
+
+export interface PlacementInput {
+  taskId: string
+  day: string
+  startMinute: number
+  endMinute: number
+}
+
+export async function fetchPlacements(from: string, to: string): Promise<Placement[]> {
+  const body = await request<{ placements: Placement[] }>(
+    `/api/v1/placements?from=${from}&to=${to}`
+  )
+  return body.placements
+}
+
+export function createPlacement(input: PlacementInput): Promise<{ placement: Placement }> {
+  return request<{ placement: Placement }>('/api/v1/placements', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  })
+}
+
+export function updatePlacement(
+  id: string,
+  patch: Partial<Pick<PlacementInput, 'day' | 'startMinute' | 'endMinute'>>
+): Promise<{ placement: Placement }> {
+  return request<{ placement: Placement }>(`/api/v1/placements/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch)
+  })
+}

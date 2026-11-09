@@ -39,3 +39,48 @@ export function isOverdue(iso: string, now: number = Date.now()): boolean {
 export function todayLocal(): string {
   return toLocalDayMinutes(new Date().toISOString()).day
 }
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function utcOf(day: string): Date {
+  const [year, month, date] = day.split('-').map(Number)
+  return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, date ?? 1))
+}
+
+export function addDays(day: string, offset: number): string {
+  const date = utcOf(day)
+  date.setUTCDate(date.getUTCDate() + offset)
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
+}
+
+/** 周一为一周起点 */
+export function startOfWeek(day: string): string {
+  const offset = (utcOf(day).getUTCDay() + 6) % 7
+  return addDays(day, -offset)
+}
+
+export function weekDays(day: string): string[] {
+  const start = startOfWeek(day)
+  return Array.from({ length: 7 }, (_, index) => addDays(start, index))
+}
+
+export function weekdayShort(day: string): string {
+  return WEEKDAYS[utcOf(day).getUTCDay()] ?? ''
+}
+
+/** 0 = 周一 … 6 = 周日 */
+export function weekdayIndex(day: string): number {
+  return (utcOf(day).getUTCDay() + 6) % 7
+}
+
+export function dayNumber(day: string): number {
+  return utcOf(day).getUTCDate()
+}
+
+/** 11月9日 */
+export function monthDay(day: string): string {
+  const date = utcOf(day)
+  return `${date.getUTCMonth() + 1}月${date.getUTCDate()}日`
+}
